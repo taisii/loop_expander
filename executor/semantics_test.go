@@ -1,212 +1,144 @@
 package executor_test
 
 import (
-	"errors"
-	"reflect"
+	"encoding/json"
 	"testing"
 
 	"github.com/taisii/go-project/assembler"
 	"github.com/taisii/go-project/executor"
 )
 
-func TestStep(t *testing.T) {
+func TestExecutor(t *testing.T) {
 	tests := []struct {
 		name           string
-		instruction    assembler.OpCode
-		initialConfig  *executor.Configuration
-		expectedConfig *executor.Configuration
-		expectedError  error
+		initialConf    *executor.Configuration
+		program        []assembler.OpCode
+		expectedPC     int
+		expectedStates []map[string]interface{}
+		expectError    bool
 	}{
 		{
-			name: "MOV instruction",
-			instruction: assembler.OpCode{
-				Mnemonic: "mov",
-				Operands: []string{"r1", "10"},
+			name: "Symbolic addition",
+			initialConf: executor.NewConfiguration(
+				map[int]interface{}{},
+				map[string]interface{}{
+					"x": executor.SymbolicExpr{
+						Op:       "+",
+						Operands: []interface{}{5, "y"},
+					},
+					"y": 3,
+				}),
+			program: []assembler.OpCode{
+				{Mnemonic: "add", Operands: []string{"z", "x", "y"}}, // z = (5 + y) + y
 			},
-			initialConfig: &executor.Configuration{
-				Registers: map[string]int{"r1": 0},
-				PC:        0,
+			expectedPC: 1,
+			expectedStates: []map[string]interface{}{
+				{"x": executor.SymbolicExpr{
+					Op:       "+",
+					Operands: []interface{}{5, "y"},
+				},
+					"y": 3, "z": 11},
 			},
-			expectedConfig: &executor.Configuration{
-				Registers: map[string]int{"r1": 10},
-				PC:        1,
-			},
-			expectedError: nil,
+			expectError: false,
 		},
 		{
-			name: "ADD instruction",
-			instruction: assembler.OpCode{
-				Mnemonic: "add",
-				Operands: []string{"r2", "r1", "5"},
+			name: "Conditional branch with symbolic register",
+			initialConf: executor.NewConfiguration(
+				map[int]interface{}{},
+				map[string]interface{}{
+					"x": executor.SymbolicExpr{
+						Op:       ">",
+						Operands: []interface{}{10, "y"},
+					},
+					"y": 5,
+				}),
+			program: []assembler.OpCode{
+				{Mnemonic: "beqz", Operands: []string{"x", "100"}}, // x > y evaluates symbolically
 			},
-			initialConfig: &executor.Configuration{
-				Registers: map[string]int{"r1": 10, "r2": 0},
-				PC:        0,
+			expectedPC: 1, // PC should increment if branch condition is false
+			expectedStates: []map[string]interface{}{
+				{"x": executor.SymbolicExpr{
+					Op:       ">",
+					Operands: []interface{}{10, "y"},
+				}},
 			},
-			expectedConfig: &executor.Configuration{
-				Registers: map[string]int{"r1": 10, "r2": 15},
-				PC:        1,
-			},
-			expectedError: nil,
+			expectError: false,
 		},
 		{
-			name: "BEQZ instruction with zero",
-			instruction: assembler.OpCode{
-				Mnemonic: "beqz",
-				Operands: []string{"r1", "3"},
+			name: "Symbolic jump",
+			initialConf: executor.NewConfiguration(
+				map[int]interface{}{},
+				map[string]interface{}{
+					"x": executor.SymbolicExpr{
+						Op:       "*",
+						Operands: []interface{}{2, "y"},
+					},
+					"y": 4,
+				}),
+			program: []assembler.OpCode{
+				{Mnemonic: "jmp", Operands: []string{"x"}}, // Jump to PC = 2 * y
 			},
-			initialConfig: &executor.Configuration{
-				Registers: map[string]int{"r1": 0},
-				PC:        0,
+			expectedPC: 8, // PC = 2 * 4
+			expectedStates: []map[string]interface{}{
+				{"x": executor.SymbolicExpr{
+					Op:       "*",
+					Operands: []interface{}{2, "y"},
+				}},
 			},
-			expectedConfig: &executor.Configuration{
-				Registers: map[string]int{"r1": 0},
-				PC:        3,
-			},
-			expectedError: nil,
+			expectError: false,
 		},
 		{
-			name: "BEQZ instruction with non-zero",
-			instruction: assembler.OpCode{
-				Mnemonic: "beqz",
-				Operands: []string{"r1", "3"},
+			name: "Unsupported instruction error",
+			initialConf: executor.NewConfiguration(
+				map[int]interface{}{},
+				map[string]interface{}{"x": 1}),
+			program: []assembler.OpCode{
+				{Mnemonic: "unknown", Operands: []string{"x", "y"}},
 			},
-			initialConfig: &executor.Configuration{
-				Registers: map[string]int{"r1": 1},
-				PC:        0,
-			},
-			expectedConfig: &executor.Configuration{
-				Registers: map[string]int{"r1": 1},
-				PC:        1,
-			},
-			expectedError: nil,
-		},
-		{
-			name: "Unsupported instruction",
-			instruction: assembler.OpCode{
-				Mnemonic: "unknown",
-				Operands: []string{},
-			},
-			initialConfig: &executor.Configuration{
-				Registers: map[string]int{},
-				PC:        0,
-			},
-			expectedConfig: nil,
-			expectedError:  errors.New("unsupported instruction: unknown"),
+			expectedPC:     0, // PC remains unchanged
+			expectedStates: []map[string]interface{}{},
+			expectError:    true,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			config, err := executor.Step(test.instruction, test.initialConfig)
+			conf := test.initialConf
 
-			// Config の比較
-			if test.expectedConfig != nil && config != nil {
-				if config.PC != test.expectedConfig.PC || !equalRegisters(config.Registers, test.expectedConfig.Registers) {
-					t.Errorf("Expected configuration: %+v, got: %+v", test.expectedConfig, config)
+			err := executor.ExecuteProgram(test.program, conf, 10)
+
+			if test.expectError {
+				if err == nil {
+					t.Errorf("expected an error but got none")
 				}
-			} else if test.expectedConfig == nil && config != nil {
-				t.Errorf("Expected nil configuration, got: %+v", config)
-			}
+			} else {
+				if err != nil {
+					t.Errorf("did not expect an error but got: %v", err)
+				}
 
-			// Error の比較
-			if test.expectedError == nil && err != nil {
-				t.Errorf("Unexpected error: %v", err)
-			} else if test.expectedError != nil && err == nil {
-				t.Errorf("Expected error: %v, got nil", test.expectedError)
-			} else if test.expectedError != nil && err != nil {
-				// エラーメッセージが等しいかどうかを比較
-				if err.Error() != test.expectedError.Error() {
-					t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
+				// Check PC value
+				if conf.PC != test.expectedPC {
+					t.Errorf("expected PC: %d, got: %d", test.expectedPC, conf.PC)
+				}
+
+				// Check register states
+				for _, state := range test.expectedStates {
+					for key, value := range state {
+						if !compareValues(conf.Registers[key], value) {
+							t.Errorf("for register '%s', expected value: %v, got: %v", key, value, conf.Registers[key])
+						}
+					}
 				}
 			}
 		})
 	}
 }
 
-// equalRegisters compares two maps of registers for equality
-func equalRegisters(a, b map[string]int) bool {
-	if len(a) != len(b) {
+func compareValues(a, b interface{}) bool {
+	jsonA, errA := json.Marshal(a)
+	jsonB, errB := json.Marshal(b)
+	if errA != nil || errB != nil {
 		return false
 	}
-	for k, v := range a {
-		if b[k] != v {
-			return false
-		}
-	}
-	return true
-}
-
-func TestRunProgram(t *testing.T) {
-	// 正常に終了するプログラムセット
-	successProgram := []assembler.OpCode{
-		{Mnemonic: "mov", Operands: []string{"r1", "10"}},      // r1 = 10
-		{Mnemonic: "add", Operands: []string{"r2", "r1", "5"}}, // r2 = r1 + 5
-		{Mnemonic: "beqz", Operands: []string{"r2", "5"}},      // if r2 == 0, jump to PC = 5
-		{Mnemonic: "jmp", Operands: []string{"4"}},             // jump to PC = 4 (end point)
-	}
-
-	// タイムアウトするプログラムセット（無限ループ）
-	timeoutProgram := []assembler.OpCode{
-		{Mnemonic: "mov", Operands: []string{"r1", "0"}},       // r1 = 0
-		{Mnemonic: "add", Operands: []string{"r1", "r1", "1"}}, // r1 = r1 + 1
-		{Mnemonic: "jmp", Operands: []string{"1"}},             // jump to PC = 1 (loop)
-	}
-
-	tests := []struct {
-		name           string
-		program        []assembler.OpCode
-		maxSteps       int
-		initialConfig  *executor.Configuration
-		expectedConfig *executor.Configuration
-		expectedError  error
-	}{
-		{
-			name:     "Normal execution",
-			program:  successProgram,
-			maxSteps: 10,
-			initialConfig: &executor.Configuration{
-				Registers: map[string]int{"r1": 0, "r2": 0},
-				PC:        0,
-			},
-			expectedConfig: &executor.Configuration{
-				Registers: map[string]int{"r1": 10, "r2": 15},
-				PC:        4, // Program ends here
-			},
-			expectedError: nil,
-		},
-		{
-			name:     "Timeout due to infinite loop",
-			program:  timeoutProgram,
-			maxSteps: 10,
-			initialConfig: &executor.Configuration{
-				Registers: map[string]int{"r1": 0},
-				PC:        0,
-			},
-			expectedConfig: &executor.Configuration{
-				Registers: map[string]int{"r1": 10}, // After 10 steps
-				PC:        1,                        // Stuck in the loop
-			},
-			expectedError: errors.New("timeout reached"),
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			finalConfig, err := executor.Run(test.program, test.initialConfig, test.maxSteps)
-
-			// エラー比較を最優先
-			if (err != nil || test.expectedError != nil) && (err == nil || test.expectedError == nil || err.Error() != test.expectedError.Error()) {
-				t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
-				return // エラーが一致しない場合はここで終了
-			}
-
-			// タイムアウトではない場合のみ、コンフィグを比較
-			if err == nil {
-				if !reflect.DeepEqual(finalConfig.Registers, test.expectedConfig.Registers) || finalConfig.PC != test.expectedConfig.PC {
-					t.Errorf("Expected configuration: %+v, got: %+v", test.expectedConfig, finalConfig)
-				}
-			}
-		})
-	}
+	return string(jsonA) == string(jsonB)
 }
