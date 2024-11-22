@@ -1,41 +1,32 @@
 package main
 
 import (
-	"fmt"
-	"os"
-
-	"github.com/taisii/go-project/engine"
+	"github.com/taisii/go-project/assembler" // パッケージをインポート
 )
 
-var dirPath string = "tests/"
-
 func main() {
-	// 読み込むディレクトリのパスを指定
+	// 例としてμAsmの命令を定義
+	// ins := []Instruction{
+	// 	Label{Name: "start"},
+	// 	OpCode{Mnemonic: "mov", Operands: []string{"r1", "r2"}},
+	// 	OpCode{Mnemonic: "add", Operands: []string{"r1", "r3"}},
+	// 	Label{Name: "loop"},
+	// 	OpCode{Mnemonic: "jmp", Operands: []string{"start"}},
+	// }
 
-	// ディレクトリ内のファイル一覧を取得
-	files, err := os.ReadDir(dirPath)
-	if err != nil {
-		fmt.Println("Error reading directory:", err)
-		return
+	ins2 := []assembler.Instruction{
+		assembler.Label{Name: "start"},
+		assembler.OpCode{Mnemonic: "cmp", Operands: []string{"x", "v", "y"}}, // x <- v < y
+		assembler.OpCode{Mnemonic: "beqz", Operands: []string{"x", "End"}},   // branch if x == 0 to End
+		assembler.OpCode{Mnemonic: "load", Operands: []string{"v", "v"}},     // load value from array1
+		assembler.OpCode{Mnemonic: "load", Operands: []string{"v", "v"}},     // load value from array2
+		assembler.Label{Name: "End"},
 	}
 
-	// 各ファイルの内容を読み込む
-	for _, file := range files {
-		if file.IsDir() {
-			// サブディレクトリはスキップ
-			continue
-		}
+	// アセンブラを作成し、プログラムをロード
+	assembler := assembler.NewAssembler()
+	assembler.LoadProgram(ins2)
 
-		filePath := dirPath + file.Name()
-		content, err := os.ReadFile(filePath)
-		if err != nil {
-			fmt.Printf("Error reading file %s: %v\n", file.Name(), err)
-			continue
-		}
-
-		// ファイルの内容を出力
-		fmt.Printf("Content of %s:\n", file.Name())
-		engine.Execute(content,10)
-		fmt.Println("------------")
-	}
+	// プログラムを表示
+	assembler.ShowProgram()
 }
