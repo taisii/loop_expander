@@ -1,4 +1,4 @@
-package assembler_test
+package executor_test
 
 import (
 	"errors"
@@ -6,14 +6,15 @@ import (
 	"testing"
 
 	"github.com/taisii/go-project/assembler"
+	"github.com/taisii/go-project/executor"
 )
 
 func TestStep(t *testing.T) {
 	tests := []struct {
 		name           string
 		instruction    assembler.OpCode
-		initialConfig  *assembler.Configuration
-		expectedConfig *assembler.Configuration
+		initialConfig  *executor.Configuration
+		expectedConfig *executor.Configuration
 		expectedError  error
 	}{
 		{
@@ -22,11 +23,11 @@ func TestStep(t *testing.T) {
 				Mnemonic: "mov",
 				Operands: []string{"r1", "10"},
 			},
-			initialConfig: &assembler.Configuration{
+			initialConfig: &executor.Configuration{
 				Registers: map[string]int{"r1": 0},
 				PC:        0,
 			},
-			expectedConfig: &assembler.Configuration{
+			expectedConfig: &executor.Configuration{
 				Registers: map[string]int{"r1": 10},
 				PC:        1,
 			},
@@ -38,11 +39,11 @@ func TestStep(t *testing.T) {
 				Mnemonic: "add",
 				Operands: []string{"r2", "r1", "5"},
 			},
-			initialConfig: &assembler.Configuration{
+			initialConfig: &executor.Configuration{
 				Registers: map[string]int{"r1": 10, "r2": 0},
 				PC:        0,
 			},
-			expectedConfig: &assembler.Configuration{
+			expectedConfig: &executor.Configuration{
 				Registers: map[string]int{"r1": 10, "r2": 15},
 				PC:        1,
 			},
@@ -54,11 +55,11 @@ func TestStep(t *testing.T) {
 				Mnemonic: "beqz",
 				Operands: []string{"r1", "3"},
 			},
-			initialConfig: &assembler.Configuration{
+			initialConfig: &executor.Configuration{
 				Registers: map[string]int{"r1": 0},
 				PC:        0,
 			},
-			expectedConfig: &assembler.Configuration{
+			expectedConfig: &executor.Configuration{
 				Registers: map[string]int{"r1": 0},
 				PC:        3,
 			},
@@ -70,11 +71,11 @@ func TestStep(t *testing.T) {
 				Mnemonic: "beqz",
 				Operands: []string{"r1", "3"},
 			},
-			initialConfig: &assembler.Configuration{
+			initialConfig: &executor.Configuration{
 				Registers: map[string]int{"r1": 1},
 				PC:        0,
 			},
-			expectedConfig: &assembler.Configuration{
+			expectedConfig: &executor.Configuration{
 				Registers: map[string]int{"r1": 1},
 				PC:        1,
 			},
@@ -86,7 +87,7 @@ func TestStep(t *testing.T) {
 				Mnemonic: "unknown",
 				Operands: []string{},
 			},
-			initialConfig: &assembler.Configuration{
+			initialConfig: &executor.Configuration{
 				Registers: map[string]int{},
 				PC:        0,
 			},
@@ -97,7 +98,7 @@ func TestStep(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			config, err := assembler.Step(test.instruction, test.initialConfig)
+			config, err := executor.Step(test.instruction, test.initialConfig)
 
 			// Config の比較
 			if test.expectedConfig != nil && config != nil {
@@ -156,19 +157,19 @@ func TestRunProgram(t *testing.T) {
 		name           string
 		program        []assembler.OpCode
 		maxSteps       int
-		initialConfig  *assembler.Configuration
-		expectedConfig *assembler.Configuration
+		initialConfig  *executor.Configuration
+		expectedConfig *executor.Configuration
 		expectedError  error
 	}{
 		{
 			name:     "Normal execution",
 			program:  successProgram,
 			maxSteps: 10,
-			initialConfig: &assembler.Configuration{
+			initialConfig: &executor.Configuration{
 				Registers: map[string]int{"r1": 0, "r2": 0},
 				PC:        0,
 			},
-			expectedConfig: &assembler.Configuration{
+			expectedConfig: &executor.Configuration{
 				Registers: map[string]int{"r1": 10, "r2": 15},
 				PC:        4, // Program ends here
 			},
@@ -178,11 +179,11 @@ func TestRunProgram(t *testing.T) {
 			name:     "Timeout due to infinite loop",
 			program:  timeoutProgram,
 			maxSteps: 10,
-			initialConfig: &assembler.Configuration{
+			initialConfig: &executor.Configuration{
 				Registers: map[string]int{"r1": 0},
 				PC:        0,
 			},
-			expectedConfig: &assembler.Configuration{
+			expectedConfig: &executor.Configuration{
 				Registers: map[string]int{"r1": 10}, // After 10 steps
 				PC:        1,                        // Stuck in the loop
 			},
@@ -192,7 +193,7 @@ func TestRunProgram(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			finalConfig, err := assembler.Run(test.program, test.initialConfig, test.maxSteps)
+			finalConfig, err := executor.Run(test.program, test.initialConfig, test.maxSteps)
 
 			// エラー比較を最優先
 			if (err != nil || test.expectedError != nil) && (err == nil || test.expectedError == nil || err.Error() != test.expectedError.Error()) {

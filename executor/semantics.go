@@ -1,9 +1,11 @@
-package assembler
+package executor
 
 import (
 	"errors"
 	"fmt"
 	"strconv"
+
+	"github.com/taisii/go-project/assembler"
 )
 
 // Configuration structure
@@ -73,7 +75,7 @@ func evalExpr(expr interface{}, conf *Configuration) (int, error) {
 }
 
 // Step executes a single instruction
-func Step(inst OpCode, conf *Configuration) (*Configuration, error) {
+func Step(inst assembler.OpCode, conf *Configuration) (*Configuration, error) {
 	switch inst.Mnemonic {
 	case "mov":
 		if len(inst.Operands) != 2 {
@@ -131,7 +133,7 @@ func Step(inst OpCode, conf *Configuration) (*Configuration, error) {
 }
 
 // Run executes the program until completion or timeout
-func Run(program []OpCode, conf *Configuration, maxSteps int) (*Configuration, error) {
+func Run(program []assembler.OpCode, conf *Configuration, maxSteps int) (*Configuration, error) {
 	for steps := 0; steps < maxSteps; steps++ {
 		if conf.PC < 0 || conf.PC >= len(program) {
 			return conf, nil // Program finished
