@@ -8,7 +8,7 @@ import (
 	"github.com/taisii/go-project/executor"
 )
 
-func TestExecutor(t *testing.T) {
+func TestStep(t *testing.T) {
 	tests := []struct {
 		name           string
 		initialConf    *executor.Configuration
@@ -105,7 +105,7 @@ func TestExecutor(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			conf := test.initialConf
 
-			err := executor.ExecuteProgram(test.program, conf, 10)
+			_, err := executor.ExecuteProgram(test.program, conf, 10)
 
 			if test.expectError {
 				if err == nil {

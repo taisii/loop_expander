@@ -1,7 +1,6 @@
 package executor
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/taisii/go-project/assembler"
@@ -9,6 +8,9 @@ import (
 
 // Step executes a single instruction
 func Step(inst assembler.OpCode, conf *Configuration) ([]*Configuration, error) {
+	var traceEvent Observation // トレースイベントを初期化
+	traceEvent.PC = conf.PC    // 現在のプログラムカウンタを設定
+
 	switch inst.Mnemonic {
 	case "mov":
 		// mov dest, src
@@ -22,6 +24,13 @@ func Step(inst assembler.OpCode, conf *Configuration) ([]*Configuration, error) 
 		}
 		conf.Registers[dest] = srcValue
 		conf.PC++
+
+		// トレースイベントを追加
+		traceEvent.Type = ObsTypeStore
+		traceEvent.Address = &SymbolicExpr{Op: "var", Operands: []interface{}{dest}}
+		traceEvent.Value = srcValue
+		conf.Trace.Observations = append(conf.Trace.Observations, traceEvent)
+
 		return []*Configuration{conf}, nil
 
 	case "add":
@@ -47,6 +56,13 @@ func Step(inst assembler.OpCode, conf *Configuration) ([]*Configuration, error) 
 		}
 		conf.Registers[dest] = result
 		conf.PC++
+
+		// トレースイベントを追加
+		traceEvent.Type = ObsTypeStore
+		traceEvent.Address = &SymbolicExpr{Op: "var", Operands: []interface{}{dest}}
+		traceEvent.Value = result
+		conf.Trace.Observations = append(conf.Trace.Observations, traceEvent)
+
 		return []*Configuration{conf}, nil
 
 	case "beqz":
@@ -64,32 +80,55 @@ func Step(inst assembler.OpCode, conf *Configuration) ([]*Configuration, error) 
 			return nil, err
 		}
 
-		// Check if condition is concrete (int) or symbolic
+		traceEvent.Type = ObsTypePC
+		traceEvent.Value = SymbolicExpr{
+			Op:       "==",
+			Operands: []interface{}{reg, 0},
+		}
+
 		switch condValue := condition.(type) {
 		case int:
+			// Concrete condition
 			if condValue == 0 {
 				// True branch
 				conf.PC = int(target.(int))
+				conf.Trace.PathCond = SymbolicExpr{
+					Op:       "&&",
+					Operands: []interface{}{conf.Trace.PathCond, SymbolicExpr{Op: "==", Operands: []interface{}{reg, 0}}},
+				}
+				conf.Trace.Observations = append(conf.Trace.Observations, traceEvent)
 				return []*Configuration{conf}, nil
 			} else {
 				// False branch
 				conf.PC++
+				conf.Trace.PathCond = SymbolicExpr{
+					Op:       "&&",
+					Operands: []interface{}{conf.Trace.PathCond, SymbolicExpr{Op: "!=", Operands: []interface{}{reg, 0}}},
+				}
+				conf.Trace.Observations = append(conf.Trace.Observations, traceEvent)
 				return []*Configuration{conf}, nil
 			}
 		case SymbolicExpr:
-			// Generate two configurations: one for true, one for false
+			// Symbolic condition
 			confTrue := *conf
 			confFalse := *conf
 
+			// Copy registers and PathCond for each branch
 			confTrue.Registers = copyRegisters(conf.Registers)
-			confTrue.PC = int(target.(int))
 			confFalse.Registers = copyRegisters(conf.Registers)
-			confFalse.PC++
 
-			return []*Configuration{
-				&confTrue,
-				&confFalse,
-			}, nil
+			// True branch
+			confTrue.PC = int(target.(int))
+			confTrue.Trace.PathCond = updatePathCond(conf.Trace.PathCond, "==", reg)
+			confTrue.Trace.Observations = append(confTrue.Trace.Observations, traceEvent)
+
+			// False branch
+			confFalse.PC++
+			confFalse.Trace.PathCond = updatePathCond(conf.Trace.PathCond, "!=", reg)
+			confFalse.Trace.Observations = append(confFalse.Trace.Observations, traceEvent)
+
+			return []*Configuration{&confTrue, &confFalse}, nil
+
 		default:
 			return nil, fmt.Errorf("unexpected type for condition: %T", condValue)
 		}
@@ -104,6 +143,12 @@ func Step(inst assembler.OpCode, conf *Configuration) ([]*Configuration, error) 
 			return nil, err
 		}
 		conf.PC = int(target.(int))
+
+		// トレースイベントを追加
+		traceEvent.Type = ObsTypePC
+		traceEvent.Value = SymbolicExpr{Op: "jmp", Operands: []interface{}{target}}
+		conf.Trace.Observations = append(conf.Trace.Observations, traceEvent)
+
 		return []*Configuration{conf}, nil
 
 	default:
@@ -119,31 +164,20 @@ func copyRegisters(registers map[string]interface{}) map[string]interface{} {
 	return newRegisters
 }
 
-func ExecuteProgram(program []assembler.OpCode, configuration *Configuration, maxSteps int) error {
-	queue := []*Configuration{configuration}
-	steps := 0 // 現在のステップ数を追跡
-
-	for len(queue) > 0 {
-		if steps >= maxSteps {
-			return errors.New("maximum steps reached")
-		}
-
-		current := queue[0]
-		queue = queue[1:]
-
-		if current.PC >= len(program) {
-			continue // プログラム終了
-		}
-
-		inst := program[current.PC]
-		newConfigs, err := Step(inst, current)
-		if err != nil {
-			return err
-		}
-
-		queue = append(queue, newConfigs...)
-		steps++ // ステップ数をインクリメント
+func updatePathCond(currentCond SymbolicExpr, op string, reg interface{}) SymbolicExpr {
+	newCond := SymbolicExpr{
+		Op:       op,
+		Operands: []interface{}{reg, 0},
 	}
 
-	return nil
+	if currentCond.Op == "" && len(currentCond.Operands) == 0 {
+		// 現在の条件が空の場合、新しい条件をそのまま返す
+		return newCond
+	}
+
+	// 現在の条件がある場合、新しい条件と連結
+	return SymbolicExpr{
+		Op:       "&&",
+		Operands: []interface{}{currentCond, newCond},
+	}
 }

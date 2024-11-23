@@ -10,12 +10,44 @@ type Configuration struct {
 	PC        int                    // Program Counter
 	Registers map[string]interface{} // General-purpose registers (can hold symbolic or concrete values)
 	Memory    map[int]interface{}    // Memory (address to value, symbolic or concrete)
+	Trace     Trace
+	StepCount int
 }
 
 // SymbolicExpr represents a symbolic expression.
 type SymbolicExpr struct {
 	Op       string        // Operator ("+", "-", ">", etc.)
 	Operands []interface{} // Operands (can be integers, strings, or nested SymbolicExpr)
+}
+
+type Trace struct {
+	Observations []Observation // 実行過程の観測データのリスト
+	PathCond     SymbolicExpr  // このトレースのパス条件（シンボリック形式）
+}
+
+type Observation struct {
+	PC        int               // プログラムカウンタ（実行中の命令の位置）
+	Type      ObsType           // 観測タイプ: load, store, pc, start, rollback, commit
+	Address   interface{}       // メモリアクセスの場合のアドレス（シンボリック形式）
+	Value     interface{}       // 値の読み取りや書き込みの内容（シンボリック形式）
+	SpecState *SpeculativeState // スペキュレーション状態（該当する場合）
+}
+
+type ObsType string
+
+const (
+	ObsTypeLoad     ObsType = "load"     // メモリ読み取り
+	ObsTypeStore    ObsType = "store"    // メモリ書き込み
+	ObsTypePC       ObsType = "pc"       // プログラムカウンタの変更
+	ObsTypeStart    ObsType = "start"    // スペキュレーション開始
+	ObsTypeRollback ObsType = "rollback" // スペキュレーション取り消し
+	ObsTypeCommit   ObsType = "commit"   // スペキュレーションのコミット
+)
+
+type SpeculativeState struct {
+	ID           int  // スペキュレーションの一意の識別子
+	Depth        int  // ネストの深さ
+	IsRolledBack bool // このスペキュレーションが取り消されたかどうか
 }
 
 // NewConfiguration creates a new Configuration
@@ -27,35 +59,51 @@ func NewConfiguration(memory map[int]interface{}, registers map[string]interface
 	}
 }
 
+type SymbolicValue struct {
+	Concrete *int          // 具体値がある場合
+	Symbolic *SymbolicExpr // シンボリック式がある場合
+}
+
 // Instruction Evaluation
 func evalExpr(expr interface{}, conf *Configuration) (interface{}, error) {
 	switch expression := expr.(type) {
 	case int:
 		return expression, nil
 	case string: // Could be a register or an integer in string form
+		// レジスタに存在するか確認
 		if value, ok := conf.Registers[expression]; ok {
+			// 再帰的に評価
 			registerValue, err := evalExpr(value, conf)
 			if err != nil {
-				return value, nil // Return as symbolic if any operand cannot be evaluated
+				// 評価中にエラーがあればシンボリックなまま返す
+				return value, nil
 			}
 			return registerValue, nil
 		}
+
+		// 整数値として解析可能か確認
 		if intValue, err := strconv.Atoi(expression); err == nil {
 			return intValue, nil
 		}
-		return nil, fmt.Errorf("unknown symbol: %s", expression)
+
+		// 未定義の変数はシンボリック変数として扱う
+		return SymbolicExpr{
+			Op:       "symbol",
+			Operands: []interface{}{expression},
+		}, nil
 	case SymbolicExpr:
-		// Attempt to evaluate SymbolicExpr if possible
+		// シンボリック式を評価
 		evaluatedOperands := make([]interface{}, len(expression.Operands))
 		for i, operand := range expression.Operands {
 			evalOperand, err := evalExpr(operand, conf)
 			if err != nil {
-				return expression, nil // Return as symbolic if any operand cannot be evaluated
+				// 評価中にエラーがあれば式全体をシンボリックのまま返す
+				return expression, nil
 			}
 			evaluatedOperands[i] = evalOperand
 		}
 
-		// All operands are concrete, attempt to compute the result
+		// オペランドがすべて具体値なら結果を計算
 		if allConcrete(evaluatedOperands) {
 			result, err := computeConcrete(expression.Op, evaluatedOperands)
 			if err != nil {
@@ -64,7 +112,7 @@ func evalExpr(expr interface{}, conf *Configuration) (interface{}, error) {
 			return result, nil
 		}
 
-		// Return as symbolic if evaluation is not fully concrete
+		// オペランドにシンボリックな値が含まれる場合、シンボリック式として返す
 		return SymbolicExpr{
 			Op:       expression.Op,
 			Operands: evaluatedOperands,

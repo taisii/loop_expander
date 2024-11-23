@@ -36,8 +36,12 @@ func TestEvalExprConcreteValues(t *testing.T) {
 	}
 
 	value, err = evalExpr("unknown", conf)
-	if err == nil {
-		t.Errorf("Expected error for unknown register, got %v", value)
+	expectedValue := SymbolicExpr{
+		Op:       "symbol",
+		Operands: []interface{}{"unknown"},
+	}
+	if err != nil || !CompareSymbolicExpr(value, expectedValue) {
+		t.Errorf("Expected symbolic value for unknown register, got %v", value)
 	}
 }
 
@@ -104,8 +108,11 @@ func TestEvalExprWithStruct(t *testing.T) {
 				Operands: []interface{}{"r1", "unknown"},
 			},
 			expectedResult: SymbolicExpr{
-				Op:       "+",
-				Operands: []interface{}{"r1", "unknown"},
+				Op: "+",
+				Operands: []interface{}{10, SymbolicExpr{
+					Op:       "symbol",
+					Operands: []interface{}{"unknown"},
+				}},
 			},
 			expectError: false,
 		},
@@ -151,8 +158,11 @@ func TestEvalExprWithStruct(t *testing.T) {
 				Operands: []interface{}{"x", "unknown"}, // x < unknown
 			},
 			expectedResult: SymbolicExpr{
-				Op:       "<",
-				Operands: []interface{}{"x", "unknown"},
+				Op: "<",
+				Operands: []interface{}{15, SymbolicExpr{
+					Op:       "symbol",
+					Operands: []interface{}{"unknown"},
+				}},
 			}, // Symbolic result
 			expectError: false,
 		},
@@ -185,8 +195,11 @@ func TestEvalExprWithStruct(t *testing.T) {
 				Operands: []interface{}{"a", "unknown"}, // a != unknown
 			},
 			expectedResult: SymbolicExpr{
-				Op:       "!=",
-				Operands: []interface{}{"a", "unknown"},
+				Op: "!=",
+				Operands: []interface{}{10, SymbolicExpr{
+					Op:       "symbol",
+					Operands: []interface{}{"unknown"},
+				}},
 			}, // Symbolic result
 			expectError: false,
 		},
