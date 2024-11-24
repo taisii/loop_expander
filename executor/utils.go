@@ -1,9 +1,7 @@
 package executor
 
 import (
-	"fmt"
 	"reflect"
-	"strings"
 )
 
 func CompareSymbolicExpr(expected, actual interface{}) bool {
@@ -39,98 +37,84 @@ func CompareSymbolicExpr(expected, actual interface{}) bool {
 	return reflect.DeepEqual(expected, actual)
 }
 
-// PrettyPrint トレース全体をフォーマットして出力する
-func PrettyPrint(initialConfig, finalConfig Configuration) {
-	// Assignments 出力
-	fmt.Println("Assignments:")
-	printMapStringInterface(finalConfig.Registers, "  ")
-	fmt.Println()
-
-	// 初期状態の出力
-	fmt.Println("initial conf:")
-	printConfiguration(initialConfig)
-
-	// トレースの出力
-	fmt.Println("\ntrace:")
-	for _, obs := range finalConfig.Trace.Observations {
-		printObservation(obs)
+func CompareTraces(expected, actual Trace) bool {
+	// 観測数が一致しない場合
+	if len(expected.Observations) != len(actual.Observations) {
+		return false
 	}
 
-	// 最終状態の出力
-	fmt.Println("\nfinal conf:")
-	printConfiguration(finalConfig)
+	// 各観測の比較
+	for i, expObs := range expected.Observations {
+		actObs := actual.Observations[i]
 
-	// Path Condition の出力
-	fmt.Println("\nPath Condition:")
-	fmt.Printf("  %s\n", formatSymbolicExpr(finalConfig.Trace.PathCond))
-	fmt.Println("===========================")
+		if expObs.PC != actObs.PC ||
+			expObs.Type != actObs.Type ||
+			!CompareSymbolicExpr(expObs.Address, actObs.Address) ||
+			!CompareSymbolicExpr(expObs.Value, actObs.Value) {
+			return false
+		}
+	}
+
+	return true
 }
 
-// printConfiguration Configuration を整形して出力
-func printConfiguration(config Configuration) {
-	fmt.Println("  m=")
-	printMapStringInterface(config.Registers, "    ")
-	fmt.Println("  a=")
-	printMapIntInterface(config.Memory, "    ")
+func CompareConfiguration(expected, actual Configuration) bool {
+	// プログラムカウンタ (PC) の比較
+	if expected.PC != actual.PC {
+		return false
+	}
+
+	// ステップカウントの比較
+	if expected.StepCount != actual.StepCount {
+		return false
+	}
+
+	// レジスタの比較
+	if !CompareRegisters(expected.Registers, actual.Registers) {
+		return false
+	}
+
+	// メモリの比較
+	if !CompareMemory(expected.Memory, actual.Memory) {
+		return false
+	}
+
+	// トレースの比較
+	if !CompareTraces(expected.Trace, actual.Trace) {
+		return false
+	}
+
+	return true
 }
 
-// printMapStringInterface map[string]interface{} を整形して出力
-func printMapStringInterface(data map[string]interface{}, indent string) {
-	for key, value := range data {
-		fmt.Printf("%s%s: %s\n", indent, key, formatValue(value))
+// レジスタを比較
+func CompareRegisters(expected, actual map[string]interface{}) bool {
+	if len(expected) != len(actual) {
+		return false
 	}
+
+	for key, expVal := range expected {
+		actVal, exists := actual[key]
+		if !exists || !CompareSymbolicExpr(expVal, actVal) {
+			return false
+		}
+	}
+
+	return true
 }
 
-// printMapIntInterface map[int]interface{} を整形して出力
-func printMapIntInterface(data map[int]interface{}, indent string) {
-	for key, value := range data {
-		fmt.Printf("%s%d: %s\n", indent, key, formatValue(value))
-	}
-}
-
-// printObservation 観測データを整形して出力
-func printObservation(obs Observation) {
-	fmt.Printf("  PC: %d, Type: %s", obs.PC, obs.Type)
-	if obs.Address != nil {
-		fmt.Printf(", Address: %s", formatValue(obs.Address))
-	}
-	if obs.Value != nil {
-		fmt.Printf(", Value: %s", formatValue(obs.Value))
-	}
-	if obs.SpecState != nil {
-		fmt.Printf(", SpeculativeState: {ID: %d, Depth: %d, RolledBack: %t}",
-			obs.SpecState.ID, obs.SpecState.Depth, obs.SpecState.IsRolledBack)
-	}
-	fmt.Println()
-}
-
-// formatValue 値を適切にフォーマット
-func formatValue(value interface{}) string {
-	switch v := value.(type) {
-	case int:
-		return fmt.Sprintf("%d", v)
-	case string:
-		return v
-	case *SymbolicExpr:
-		return formatSymbolicExpr(*v)
-	case SymbolicExpr:
-		return formatSymbolicExpr(v)
-	default:
-		return fmt.Sprintf("%v", v)
-	}
-}
-
-// formatSymbolicExpr シンボリック式を文字列にフォーマット
-func formatSymbolicExpr(expr SymbolicExpr) string {
-	// 単一のオペランドの場合は括弧で囲まずに出力
-	if len(expr.Operands) == 1 {
-		return formatValue(expr.Operands[0])
+// メモリを比較
+func CompareMemory(expected, actual map[int]interface{}) bool {
+	if len(expected) != len(actual) {
+		return false
 	}
 
-	// 演算を伴う場合はオペランドを演算子で結合し、式全体を () で囲む
-	var operands []string
-	for _, op := range expr.Operands {
-		operands = append(operands, formatValue(op))
+	for addr, expVal := range expected {
+		actVal, exists := actual[addr]
+		if !exists || !CompareSymbolicExpr(expVal, actVal) {
+			return false
+		}
 	}
-	return fmt.Sprintf("(%s)", strings.Join(operands, fmt.Sprintf(" %s ", expr.Op)))
+
+	return true
 }

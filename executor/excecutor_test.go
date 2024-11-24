@@ -2,11 +2,11 @@ package executor_test
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/taisii/go-project/assembler"
 	"github.com/taisii/go-project/executor"
+	"github.com/taisii/go-project/utils"
 )
 
 // テストケース用構造体
@@ -195,7 +195,7 @@ func TestExecuteProgram(t *testing.T) {
 					// 失敗した場合は初期状態と最後の状態を出力
 					fmt.Println("=== Debug Output ===")
 					for _, config := range finalConfigs {
-						executor.PrettyPrint(*testCase.InitialConfig, *config)
+						utils.PrintTest(*testCase.InitialConfig, *config)
 					}
 					return
 				}
@@ -203,84 +203,17 @@ func TestExecuteProgram(t *testing.T) {
 				// トレースの内容が一致するか確認
 				for i, expectedTrace := range testCase.ExpectedTraces {
 					actualTrace := finalConfigs[i].Trace // Configuration 内の Trace を取得
-					if !compareTraces(expectedTrace, actualTrace) {
-						differences := CompareAndPrintDifferences(expectedTrace, actualTrace)
+					if !executor.CompareTraces(expectedTrace, actualTrace) {
+						differences := utils.FormatTraceDifferences(expectedTrace, actualTrace)
 						t.Errorf("Test case '%s' failed: Trace %d did not match expected trace.\n%s",
 							testCase.Name, i+1, differences)
 
 						// 失敗した場合は初期状態と最後の状態を出力
 						fmt.Println("=== Debug Output ===")
-						executor.PrettyPrint(*testCase.InitialConfig, *finalConfigs[i])
+						utils.PrintTest(*testCase.InitialConfig, *finalConfigs[i])
 					}
 				}
 			}
 		})
 	}
-
-}
-
-func compareTraces(expected, actual executor.Trace) bool {
-	// 観測数が一致しない場合
-	if len(expected.Observations) != len(actual.Observations) {
-		return false
-	}
-
-	// 各観測の比較
-	for i, expObs := range expected.Observations {
-		actObs := actual.Observations[i]
-
-		if expObs.PC != actObs.PC ||
-			expObs.Type != actObs.Type ||
-			!executor.CompareSymbolicExpr(expObs.Address, actObs.Address) ||
-			!executor.CompareSymbolicExpr(expObs.Value, actObs.Value) {
-			return false
-		}
-	}
-
-	return true
-}
-
-func CompareAndPrintDifferences(expected, actual executor.Trace) string {
-	var sb strings.Builder
-	sb.WriteString("Differences between expected and actual traces:\n")
-
-	// 観測数の違い
-	if len(expected.Observations) != len(actual.Observations) {
-		sb.WriteString(fmt.Sprintf("- Observation count mismatch: expected %d, got %d\n",
-			len(expected.Observations), len(actual.Observations)))
-	} else {
-		// 各観測の比較
-		for i := 0; i < len(expected.Observations); i++ {
-			expectedObs := expected.Observations[i]
-			actualObs := actual.Observations[i]
-
-			if expectedObs.PC != actualObs.PC {
-				sb.WriteString(fmt.Sprintf("- Mismatch at observation %d (PC): expected %d, got %d\n",
-					i+1, expectedObs.PC, actualObs.PC))
-			}
-			if expectedObs.Type != actualObs.Type {
-				sb.WriteString(fmt.Sprintf("- Mismatch at observation %d (Type): expected %s, got %s\n",
-					i+1, expectedObs.Type, actualObs.Type))
-			}
-			if !executor.CompareSymbolicExpr(expectedObs.Address, actualObs.Address) {
-				sb.WriteString(fmt.Sprintf("- Mismatch at observation %d (Address):\n", i+1))
-				sb.WriteString(fmt.Sprintf("  Expected: %+v\n", expectedObs.Address))
-				sb.WriteString(fmt.Sprintf("  Actual:   %+v\n", actualObs.Address))
-			}
-			if !executor.CompareSymbolicExpr(expectedObs.Value, actualObs.Value) {
-				sb.WriteString(fmt.Sprintf("- Mismatch at observation %d (Value):\n", i+1))
-				sb.WriteString(fmt.Sprintf("  Expected: %+v\n", expectedObs.Value))
-				sb.WriteString(fmt.Sprintf("  Actual:   %+v\n", actualObs.Value))
-			}
-		}
-	}
-
-	// パス条件の違い
-	if !executor.CompareSymbolicExpr(expected.PathCond, actual.PathCond) {
-		sb.WriteString("- Path condition mismatch:\n")
-		sb.WriteString(fmt.Sprintf("  Expected: %+v\n", expected.PathCond))
-		sb.WriteString(fmt.Sprintf("  Actual:   %+v\n", actual.PathCond))
-	}
-
-	return sb.String()
 }
