@@ -1,14 +1,12 @@
-package utils
+package executor
 
 import (
 	"fmt"
 	"strings"
-
-	"github.com/taisii/go-project/executor"
 )
 
 // PrintTrace 詳細なフォーマットでTraceを表示
-func PrintTrace(trace executor.Trace) {
+func PrintTrace(trace Trace) {
 	fmt.Println("Trace :")
 
 	// 観測データの表示
@@ -31,7 +29,7 @@ func PrintTrace(trace executor.Trace) {
 	fmt.Println("===========================")
 }
 
-func FormatTraceDifferences(expected, actual executor.Trace) string {
+func FormatTraceDifferences(expected, actual Trace) string {
 	var sb strings.Builder
 	sb.WriteString("Differences between expected and actual traces:\n")
 
@@ -53,12 +51,12 @@ func FormatTraceDifferences(expected, actual executor.Trace) string {
 				sb.WriteString(fmt.Sprintf("- Mismatch at observation %d (Type): expected %s, got %s\n",
 					i+1, expectedObs.Type, actualObs.Type))
 			}
-			if !executor.CompareSymbolicExpr(expectedObs.Address, actualObs.Address) {
+			if !CompareSymbolicExpr(expectedObs.Address, actualObs.Address) {
 				sb.WriteString(fmt.Sprintf("- Mismatch at observation %d (Address):\n", i+1))
 				sb.WriteString(fmt.Sprintf("  Expected: %+v\n", expectedObs.Address))
 				sb.WriteString(fmt.Sprintf("  Actual:   %+v\n", actualObs.Address))
 			}
-			if !executor.CompareSymbolicExpr(expectedObs.Value, actualObs.Value) {
+			if !CompareSymbolicExpr(expectedObs.Value, actualObs.Value) {
 				sb.WriteString(fmt.Sprintf("- Mismatch at observation %d (Value):\n", i+1))
 				sb.WriteString(fmt.Sprintf("  Expected: %+v\n", expectedObs.Value))
 				sb.WriteString(fmt.Sprintf("  Actual:   %+v\n", actualObs.Value))
@@ -67,7 +65,7 @@ func FormatTraceDifferences(expected, actual executor.Trace) string {
 	}
 
 	// パス条件の違い
-	if !executor.CompareSymbolicExpr(expected.PathCond, actual.PathCond) {
+	if !CompareSymbolicExpr(expected.PathCond, actual.PathCond) {
 		sb.WriteString("- Path condition mismatch:\n")
 		sb.WriteString(fmt.Sprintf("  Expected: %+v\n", expected.PathCond))
 		sb.WriteString(fmt.Sprintf("  Actual:   %+v\n", actual.PathCond))
@@ -77,7 +75,7 @@ func FormatTraceDifferences(expected, actual executor.Trace) string {
 }
 
 // printObservation 観測データを整形して出力
-func printObservation(obs executor.Observation) {
+func printObservation(obs Observation) {
 	fmt.Printf("  PC: %d, Type: %s", obs.PC, obs.Type)
 
 	// Addressがある場合の処理
@@ -105,7 +103,7 @@ func printObservation(obs executor.Observation) {
 }
 
 // printMemoryAndRegister Configuration を整形して出力
-func printMemoryAndRegister(config executor.Configuration) {
+func printMemoryAndRegister(config Configuration) {
 	fmt.Println("  m=")
 	printMapStringInterface(config.Registers, "    ")
 	fmt.Println("  a=")

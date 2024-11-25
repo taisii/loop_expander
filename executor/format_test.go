@@ -1,13 +1,11 @@
-package utils
+package executor
 
 import (
 	"fmt"
-
-	"github.com/taisii/go-project/executor"
 )
 
 // 初期状態と最終状態を受け取ってそれぞれの状態とトレースを出力
-func PrintTest(initialConfig, finalConfig executor.Configuration) {
+func PrintTest(initialConfig, finalConfig Configuration) {
 	// Assignments 出力
 	fmt.Println("Assignments:")
 	printMapStringInterface(finalConfig.Registers, "  ")

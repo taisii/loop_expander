@@ -5,7 +5,6 @@ import (
 
 	"github.com/taisii/go-project/assembler"
 	"github.com/taisii/go-project/executor"
-	"github.com/taisii/go-project/utils"
 )
 
 func TestExecute(t *testing.T) {
@@ -175,7 +174,7 @@ func TestExecute(t *testing.T) {
 				// 各終了状態の比較
 				for i, expectedConfig := range testCase.ExpectedConfigs {
 					if !executor.CompareConfiguration(expectedConfig, *finalConfigs[i]) {
-						difference := utils.FormatConfigDifferences(expectedConfig, *finalConfigs[i])
+						difference := executor.FormatConfigDifferences(expectedConfig, *finalConfigs[i])
 						t.Errorf("Test case '%s' failed: configuration %d did not match expected configuration.\n%s",
 							testCase.Name, i+1, difference)
 					}

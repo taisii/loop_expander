@@ -6,7 +6,6 @@ import (
 
 	"github.com/taisii/go-project/assembler"
 	"github.com/taisii/go-project/executor"
-	"github.com/taisii/go-project/utils"
 )
 
 // テストケース用構造体
@@ -189,7 +188,7 @@ func TestExecuteProgram(t *testing.T) {
 					// 失敗した場合は初期状態と最後の状態を出力
 					fmt.Println("=== Debug Output ===")
 					for _, config := range finalConfigs {
-						utils.PrintTest(*testCase.InitialConfig, *config)
+						executor.PrintTest(*testCase.InitialConfig, *config)
 					}
 					return
 				}
@@ -198,13 +197,13 @@ func TestExecuteProgram(t *testing.T) {
 				for i, expectedTrace := range testCase.ExpectedTraces {
 					actualTrace := finalConfigs[i].Trace // Configuration 内の Trace を取得
 					if !executor.CompareTraces(expectedTrace, actualTrace) {
-						differences := utils.FormatTraceDifferences(expectedTrace, actualTrace)
+						differences := executor.FormatTraceDifferences(expectedTrace, actualTrace)
 						t.Errorf("Test case '%s' failed: Trace %d did not match expected trace.\n%s",
 							testCase.Name, i+1, differences)
 
 						// 失敗した場合は初期状態と最後の状態を出力
 						fmt.Println("=== Debug Output ===")
-						utils.PrintTest(*testCase.InitialConfig, *finalConfigs[i])
+						executor.PrintTest(*testCase.InitialConfig, *finalConfigs[i])
 					}
 				}
 			}

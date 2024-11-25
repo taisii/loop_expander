@@ -5,7 +5,6 @@ import (
 
 	"github.com/taisii/go-project/assembler"
 	"github.com/taisii/go-project/executor"
-	"github.com/taisii/go-project/utils"
 )
 
 func TestAlwaysMispredictStep(t *testing.T) {
@@ -192,7 +191,7 @@ func TestAlwaysMispredictStep(t *testing.T) {
 			}
 			for i, conf := range confs {
 				if !executor.CompareConfiguration(testCase.expectedConfs[i], *conf) {
-					differences := utils.FormatConfigDifferences(testCase.expectedConfs[i], *conf)
+					differences := executor.FormatConfigDifferences(testCase.expectedConfs[i], *conf)
 					t.Errorf("Test case '%s' failed: Trace %d did not match expected confs.\n%s",
 						testCase.name, i+1, differences)
 				}

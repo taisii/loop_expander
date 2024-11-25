@@ -1,14 +1,13 @@
-package utils
+package executor
 
 import (
 	"fmt"
 	"strings"
 
-	"github.com/taisii/go-project/executor"
 )
 
 // PrintConfiguration 詳細なフォーマットでConfigurationを表示
-func PrintConfiguration(config executor.Configuration) {
+func PrintConfiguration(config Configuration) {
 	fmt.Println("Configuration Details:")
 	fmt.Printf("  Program Counter (PC): %d\n", config.PC)
 	fmt.Printf("  Step Count: %d\n", config.StepCount)
@@ -38,7 +37,7 @@ func PrintConfiguration(config executor.Configuration) {
 	fmt.Println("===========================")
 }
 
-func FormatConfigDifferences(expected, actual executor.Configuration) string {
+func FormatConfigDifferences(expected, actual Configuration) string {
 	var sb strings.Builder
 	sb.WriteString("Differences between expected and actual configurations:\n")
 
@@ -63,7 +62,7 @@ func FormatConfigDifferences(expected, actual executor.Configuration) string {
 				sb.WriteString(fmt.Sprintf("- Missing register in actual: %s\n", reg))
 				continue
 			}
-			if !executor.CompareSymbolicExpr(expVal, actVal) {
+			if !CompareSymbolicExpr(expVal, actVal) {
 				sb.WriteString(fmt.Sprintf("- Mismatch in register %s:\n", reg))
 				sb.WriteString(fmt.Sprintf("  Expected: %+v\n", expVal))
 				sb.WriteString(fmt.Sprintf("  Actual:   %+v\n", actVal))
@@ -82,7 +81,7 @@ func FormatConfigDifferences(expected, actual executor.Configuration) string {
 				sb.WriteString(fmt.Sprintf("- Missing memory address in actual: %d\n", addr))
 				continue
 			}
-			if !executor.CompareSymbolicExpr(expVal, actVal) {
+			if !CompareSymbolicExpr(expVal, actVal) {
 				sb.WriteString(fmt.Sprintf("- Mismatch at memory address %d:\n", addr))
 				sb.WriteString(fmt.Sprintf("  Expected: %+v\n", expVal))
 				sb.WriteString(fmt.Sprintf("  Actual:   %+v\n", actVal))

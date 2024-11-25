@@ -1,10 +1,8 @@
-package utils
+package executor
 
 import (
 	"fmt"
 	"strings"
-
-	"github.com/taisii/go-project/executor"
 )
 
 // formatValue 値を適切にフォーマット
@@ -14,9 +12,9 @@ func formatValue(value interface{}) string {
 		return fmt.Sprintf("%d", v)
 	case string:
 		return v
-	case *executor.SymbolicExpr:
+	case *SymbolicExpr:
 		return formatSymbolicExpr(*v)
-	case executor.SymbolicExpr:
+	case SymbolicExpr:
 		return formatSymbolicExpr(v)
 	default:
 		return fmt.Sprintf("%v", v)
@@ -24,7 +22,7 @@ func formatValue(value interface{}) string {
 }
 
 // formatSymbolicExpr シンボリック式を文字列にフォーマット
-func formatSymbolicExpr(expr executor.SymbolicExpr) string {
+func formatSymbolicExpr(expr SymbolicExpr) string {
 	// 単一のオペランドの場合は括弧で囲まずに出力
 	if len(expr.Operands) == 1 {
 		return formatValue(expr.Operands[0])
