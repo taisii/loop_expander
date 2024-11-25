@@ -43,10 +43,7 @@ func TestExecuteProgram(t *testing.T) {
 						{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{"x", 0}}},
 						{PC: 3, Type: executor.ObsTypeStore, Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"y"}}, Value: 2},
 					},
-					PathCond: executor.SymbolicExpr{
-						Op:       "&&",
-						Operands: []interface{}{executor.SymbolicExpr{Op: "==", Operands: []interface{}{"x", 0}}},
-					},
+					PathCond: executor.SymbolicExpr{Op: "==", Operands: []interface{}{"x", 0}},
 				},
 				// 分岐の偽側のトレース
 				{
@@ -55,10 +52,7 @@ func TestExecuteProgram(t *testing.T) {
 						{PC: 1, Type: executor.ObsTypeStore, Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"y"}}, Value: 1},
 						{PC: 2, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "jmp", Operands: []interface{}{5}}},
 					},
-					PathCond: executor.SymbolicExpr{
-						Op:       "&&",
-						Operands: []interface{}{executor.SymbolicExpr{Op: "!=", Operands: []interface{}{"x", 0}}},
-					},
+					PathCond: executor.SymbolicExpr{Op: "!=", Operands: []interface{}{"x", 0}},
 				},
 			},
 
