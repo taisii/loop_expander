@@ -219,36 +219,11 @@ func TestEvalExprWithStruct(t *testing.T) {
 				t.Errorf("Unexpected error: %v", err)
 			}
 
-			if !isEqual(result, tc.expectedResult) {
+			if !CompareSymbolicExpr(result, tc.expectedResult) {
 				t.Errorf("Expected result: %v, got: %v", tc.expectedResult, result)
 			}
 		})
 	}
-}
-
-// isEqual compares two interfaces for equality, supporting symbolic expressions
-func isEqual(a, b interface{}) bool {
-	switch valA := a.(type) {
-	case int:
-		if valB, ok := b.(int); ok {
-			return valA == valB
-		}
-	case SymbolicExpr:
-		if valB, ok := b.(SymbolicExpr); ok {
-			if valA.Op != valB.Op || len(valA.Operands) != len(valB.Operands) {
-				return false
-			}
-			for i := range valA.Operands {
-				if !isEqual(valA.Operands[i], valB.Operands[i]) {
-					return false
-				}
-			}
-			return true
-		}
-	default:
-		return a == b
-	}
-	return false
 }
 
 func TestAllConcrete(t *testing.T) {

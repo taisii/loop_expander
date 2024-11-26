@@ -50,7 +50,7 @@ func TestAlwaysMispredictStep(t *testing.T) {
 								PC:   0,
 								Type: executor.ObsTypePC,
 								Value: executor.SymbolicExpr{
-									Op: "==",
+									Op: "!=",
 									Operands: []interface{}{
 										"reg", 0,
 									},
@@ -103,7 +103,7 @@ func TestAlwaysMispredictStep(t *testing.T) {
 								PC:   0,
 								Type: executor.ObsTypePC,
 								Value: executor.SymbolicExpr{
-									Op: "==",
+									Op: "!=",
 									Operands: []interface{}{
 										"reg", 0,
 									},

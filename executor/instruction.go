@@ -41,11 +41,11 @@ const (
 
 // SpeculativeState represents an individual speculative execution state.
 type SpeculativeState struct {
-	ID           int           // Unique identifier for the speculative state
-	RemainingWin int           // Remaining speculative window size (N)
-	StartPC      int           // Program Counter (PC) where speculation started
-	InitialConf  Configuration // Configuration when speculation started
-	CorrectPC    int           // Correct branch PC to commit if speculation is valid
+	ID            int           // Unique identifier for the speculative state
+	RemainingWin  int           // Remaining speculative window size (N)
+	StartPC       int           // Program Counter (PC) where speculation started
+	Configuration Configuration // Configuration when speculation started
+	CorrectPC     int           // Correct branch PC to commit if speculation is valid
 }
 
 // ExecutionState represents the overall execution state during speculative execution.

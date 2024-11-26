@@ -95,8 +95,8 @@ func printObservation(obs Observation) {
 			obs.SpecState.RemainingWin,
 			obs.SpecState.StartPC,
 			obs.SpecState.CorrectPC,
-			obs.SpecState.InitialConf.Registers, // Assume InitialConf contains Registers and Memory
-			obs.SpecState.InitialConf.Memory)
+			obs.SpecState.Configuration.Registers, // Assume InitialConf contains Registers and Memory
+			obs.SpecState.Configuration.Memory)
 	}
 
 	fmt.Println()

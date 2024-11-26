@@ -31,10 +31,18 @@ func AlwaysMispredictStep(
 		}
 
 		// トレースイベントの初期化
-		traceEvent := Observation{
+		traceEventTrue := Observation{
 			Type: ObsTypePC,
 			Value: SymbolicExpr{
 				Op:       "==",
+				Operands: []interface{}{reg, 0},
+			},
+			PC: curConf.PC,
+		}
+		traceEventFalse := Observation{
+			Type: ObsTypePC,
+			Value: SymbolicExpr{
+				Op:       "!=",
 				Operands: []interface{}{reg, 0},
 			},
 			PC: curConf.PC,
@@ -46,36 +54,37 @@ func AlwaysMispredictStep(
 			newConf := *curConf
 			if condValue == 0 {
 				// Condition true
-				isSpeculative = true // 投機的実行が必要
+				isSpeculative = true
 				newConf.PC++
 				newConf.Trace.PathCond = updatePathCond(newConf.Trace.PathCond, "==", reg)
+				newConf.Trace.Observations = append(newConf.Trace.Observations, traceEventFalse) // 誤ってfalseのほうに進むからトレースはfalseのもの
 			} else {
 				// Condition false,
-				isSpeculative = true // 投機的実行が必要
+				isSpeculative = true
 				newConf.PC = int(target.(int))
 				newConf.Trace.PathCond = updatePathCond(newConf.Trace.PathCond, "!=", reg)
+				newConf.Trace.Observations = append(newConf.Trace.Observations, traceEventTrue) // 誤ってtrueのほうに進むからトレースはtrueのもの
 			}
-			newConf.Trace.Observations = append(newConf.Trace.Observations, traceEvent)
 			newConfs = append(newConfs, &newConf)
 
 		case SymbolicExpr:
 			// Symbolic condition
-			isSpeculative = true // 投機的実行が必要
-			newConfFalse := *curConf
+			isSpeculative = true
 			newConfTrue := *curConf
+			newConfFalse := *curConf
 
-			// False branch (condition is true, mispredicts to False)
-			newConfFalse.PC++
-			newConfFalse.Trace.PathCond = updatePathCond(curConf.Trace.PathCond, "==", reg)
-			newConfFalse.Trace.Observations = append(newConfFalse.Trace.Observations, traceEvent)
+			// True branch (condition is true, mispredicts to False)
+			newConfTrue.PC++
+			newConfTrue.Trace.PathCond = updatePathCond(curConf.Trace.PathCond, "==", reg)
+			newConfTrue.Trace.Observations = append(newConfTrue.Trace.Observations, traceEventFalse) // 誤ってfalseのほうに進むからトレースはfalseのもの
 
-			// True branch (condition is false, mispredicts to True)
-			newConfTrue.PC = int(target.(int))
-			newConfTrue.Trace.PathCond = updatePathCond(curConf.Trace.PathCond, "!=", reg)
-			newConfTrue.Trace.Observations = append(newConfTrue.Trace.Observations, traceEvent)
+			// False branch (condition is false, mispredicts to True)
+			newConfFalse.PC = int(target.(int))
+			newConfFalse.Trace.PathCond = updatePathCond(curConf.Trace.PathCond, "!=", reg)
+			newConfFalse.Trace.Observations = append(newConfFalse.Trace.Observations, traceEventTrue) // 誤ってtrueのほうに進むからトレースはtrueのもの
 
 			// 両方の分岐を返す
-			newConfs = append(newConfs, &newConfFalse, &newConfTrue)
+			newConfs = append(newConfs, &newConfTrue, &newConfFalse)
 
 		default:
 			return nil, false, fmt.Errorf("unexpected type for condition: %T", condValue)

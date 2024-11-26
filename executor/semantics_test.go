@@ -65,6 +65,29 @@ func TestStep(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name: "Symbolic add",
+			initialConf: executor.NewConfiguration(
+				map[int]interface{}{},
+				map[string]interface{}{}),
+			program: []assembler.OpCode{
+				{Mnemonic: "add", Operands: []string{"z", "x", "y"}}, // add z x y
+			},
+			expectedPC: 1,
+			expectedStates: []map[string]interface{}{
+				{"z": executor.SymbolicExpr{
+					Op: "+",
+					Operands: []interface{}{executor.SymbolicExpr{
+						Op:       "symbol",
+						Operands: []interface{}{"x"},
+					}, executor.SymbolicExpr{
+						Op:       "symbol",
+						Operands: []interface{}{"y"},
+					}},
+				}},
+			},
+			expectError: false,
+		},
+		{
 			name: "Symbolic jump",
 			initialConf: executor.NewConfiguration(
 				map[int]interface{}{},

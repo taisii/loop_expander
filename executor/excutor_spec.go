@@ -2,19 +2,97 @@ package executor
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/taisii/go-project/assembler"
 )
 
-// execute runs the given program with the provided initial configuration up to maxSteps.
-func SpecExecute(program []assembler.OpCode, initialConfig *Configuration, maxSteps int) ([]*Configuration, error) {
-	// 初期化
-	execState := ExecutionState{
-		Counter:     0,
-		CurrentConf: *initialConfig,
-		Speculative: nil, // 初期状態では投機状態なし
+// 実行パスの定義
+type ExecutionPath struct {
+	CurrentConf      Configuration      // Current configuration
+	SpeculativeStack []SpeculativeState // Stack of speculative states
+}
+
+func initializePaths(initialConfig *Configuration) []ExecutionPath {
+	if initialConfig.Registers == nil {
+		initialConfig.Registers = make(map[string]interface{})
 	}
+	if initialConfig.Memory == nil {
+		initialConfig.Memory = make(map[int]interface{})
+	}
+	return []ExecutionPath{
+		{
+			CurrentConf:      *initialConfig,
+			SpeculativeStack: nil,
+		},
+	}
+}
+
+func handleRollback(currentConf Configuration, specState SpeculativeState) Configuration {
+	rollbackConf := Configuration{
+		PC:        specState.CorrectPC,
+		Registers: copyRegisters(specState.Configuration.Registers),
+		Memory:    copyMemory(specState.Configuration.Memory),
+		Trace:     currentConf.Trace,
+	}
+
+	// ロールバック操作をトレースに追加
+	rollbackConf.Trace.Observations = append(
+		rollbackConf.Trace.Observations,
+		Observation{
+			Type:  ObsTypeRollback,
+			Value: specState.ID,
+			PC:    rollbackConf.PC,
+		},
+	)
+
+	return rollbackConf
+}
+
+func handleSpecStart(newConfs []*Configuration, correctConfs []*Configuration, path ExecutionPath, defaultRemainingWindow int) []ExecutionPath {
+	var newPaths []ExecutionPath
+
+	for i, conf := range newConfs {
+		newSpecState := SpeculativeState{
+			ID:            len(path.SpeculativeStack),
+			RemainingWin:  defaultRemainingWindow,
+			StartPC:       path.CurrentConf.PC,
+			Configuration: path.CurrentConf,
+			CorrectPC:     correctConfs[i].PC, // 正しい実行と投機的実行の条件探索順序が同じであることを仮定
+		}
+
+		// SpeculativeStack が空でない場合は RemainingWin を計算
+		if len(path.SpeculativeStack) > 0 {
+			newSpecState.RemainingWin = path.SpeculativeStack[len(path.SpeculativeStack)-1].RemainingWin - 1
+		}
+
+		newPath := ExecutionPath{
+			CurrentConf:      *conf,
+			SpeculativeStack: append(path.SpeculativeStack, newSpecState),
+		}
+		observation := Observation{
+			PC:    path.CurrentConf.PC,
+			Type:  ObsTypeStart,
+			Value: newSpecState.ID,
+		}
+
+		// Observations に新しい要素を最後から2番目に挿入
+		obs := newPath.CurrentConf.Trace.Observations
+		if len(obs) >= 1 {
+			newPath.CurrentConf.Trace.Observations = append(obs[:len(obs)-1], observation, obs[len(obs)-1])
+		} else {
+			newPath.CurrentConf.Trace.Observations = append(obs, observation)
+		}
+
+		newPaths = append(newPaths, newPath)
+	}
+
+	return newPaths
+}
+
+// execute runs the given program with the provided initial configuration up to maxSteps.
+func SpecExecute(program []assembler.OpCode, initialConfig *Configuration, maxSteps int, remainingWindow int) ([]*Configuration, error) {
+
+	paths := initializePaths(initialConfig)
 	var finalConfigs []*Configuration
 	stepCount := 0
 
@@ -22,77 +100,54 @@ func SpecExecute(program []assembler.OpCode, initialConfig *Configuration, maxSt
 	for stepCount < maxSteps {
 		stepCount++
 
-		// 現在の状態を確認
-		var currentConf *Configuration
-		if len(execState.Speculative) > 0 {
-			// 投機的状態が存在する場合はスタックの先頭を取得
-			currentSpec := &execState.Speculative[len(execState.Speculative)-1]
-			currentConf = &currentSpec.InitialConf
-		} else {
-			// 非投機的状態を処理
-			currentConf = &execState.CurrentConf
-		}
+		if len(paths) > 0 {
+			// 現在の状態を確認
+			currentPath := paths[len(paths)-1]
+			paths = paths[:len(paths)-1]
 
-		// プログラム終了条件
-		if currentConf.PC >= len(program) || currentConf.PC < 0 {
-			finalConfigs = append(finalConfigs, currentConf)
-			if len(execState.Speculative) > 0 {
-				execState.Speculative = execState.Speculative[:len(execState.Speculative)-1] // 投機的状態を削除
-			} else {
-				break
-			}
-			continue
-		}
+			// プログラム終了判定
+			if currentPath.CurrentConf.PC >= len(program) {
+				if len(currentPath.SpeculativeStack) > 0 {
+					// ロールバック処理
+					lastSpecState := currentPath.SpeculativeStack[len(currentPath.SpeculativeStack)-1]
+					currentPath.SpeculativeStack = currentPath.SpeculativeStack[:len(currentPath.SpeculativeStack)-1]
+					currentPath.CurrentConf = handleRollback(currentPath.CurrentConf, lastSpecState)
 
-		// 現在の命令を取得
-		instruction := program[currentConf.PC]
-
-		// step関数を呼び出して命令を実行
-		newConfs, isSpeculative, err := AlwaysMispredictStep(instruction, currentConf)
-		if err != nil {
-			return nil, fmt.Errorf("execution error at step %d: %w", stepCount, err)
-		}
-
-		if len(execState.Speculative) > 0 {
-			// 投機的状態にいる場合の処理
-			currentSpec := &execState.Speculative[len(execState.Speculative)-1]
-			currentSpec.RemainingWin--
-
-			if currentSpec.RemainingWin <= 0 {
-				// 投機ウィンドウが終了
-				if currentSpec.CorrectPC == currentConf.PC {
-					// コミット
-					execState.CurrentConf = currentSpec.InitialConf
-					finalConfigs = append(finalConfigs, &execState.CurrentConf)
+					paths = append(paths, currentPath)
+				} else {
+					// 実行完了
+					finalConfigs = append(finalConfigs, &currentPath.CurrentConf)
 				}
-				// スタックから削除
-				execState.Speculative = execState.Speculative[:len(execState.Speculative)-1]
-			} else {
-				// 投機的状態の進行
-				execState.Speculative[len(execState.Speculative)-1].InitialConf = *newConfs[0]
+				continue
 			}
-		} else if isSpeculative {
-			// 非投機的状態から投機的状態に移行
-			for _, conf := range newConfs {
-				specState := SpeculativeState{
-					ID:           execState.Counter,
-					RemainingWin: 5, // 固定の投機ウィンドウ（適宜調整可能）
-					StartPC:      currentConf.PC,
-					InitialConf:  *conf,
-					CorrectPC:    conf.PC, // 仮に正しい分岐を現在のPCとする
+
+			// 命令実行フェーズ
+			instruction := program[currentPath.CurrentConf.PC]
+			newConfs, isSpeculative, err := AlwaysMispredictStep(instruction, &currentPath.CurrentConf)
+			if err != nil {
+				return nil, err
+			}
+
+			if isSpeculative {
+				//ここでStep関数を実行して正しい遷移先を取得している。2つのsemanticsを表す関数が同じ順序でconfsを返すことが前提になっている
+				correctConfs, err := Step(instruction, &currentPath.CurrentConf)
+				if err != nil {
+					return nil, err
 				}
-				execState.Speculative = append(execState.Speculative, specState)
-				execState.Counter++
+				paths = append(paths, handleSpecStart(newConfs, correctConfs, currentPath, remainingWindow)...)
+			} else {
+				// 通常の命令実行
+				currentPath.CurrentConf = *newConfs[0]
+				paths = append(paths, currentPath)
 			}
 		} else {
-			// 非投機的状態を更新
-			execState.CurrentConf = *newConfs[0]
+			return finalConfigs, nil
 		}
-	}
 
-	// 最大ステップ数を超えた場合のエラー処理
-	if stepCount >= maxSteps {
-		return nil, errors.New("execution reached maximum step limit")
+		// 最大ステップ数を超えた場合のエラー処理
+		if stepCount >= maxSteps {
+			return nil, errors.New("execution reached maximum step limit")
+		}
 	}
 
 	return finalConfigs, nil

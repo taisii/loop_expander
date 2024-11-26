@@ -156,14 +156,6 @@ func Step(inst assembler.OpCode, conf *Configuration) ([]*Configuration, error) 
 	}
 }
 
-func copyRegisters(registers map[string]interface{}) map[string]interface{} {
-	newRegisters := make(map[string]interface{})
-	for k, v := range registers {
-		newRegisters[k] = v
-	}
-	return newRegisters
-}
-
 func updatePathCond(currentCond SymbolicExpr, op string, reg interface{}) SymbolicExpr {
 	newCond := SymbolicExpr{
 		Op:       op,
