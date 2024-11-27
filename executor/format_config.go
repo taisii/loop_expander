@@ -3,7 +3,6 @@ package executor
 import (
 	"fmt"
 	"strings"
-
 )
 
 // PrintConfiguration 詳細なフォーマットでConfigurationを表示
@@ -27,14 +26,6 @@ func PrintConfiguration(config Configuration) {
 	}
 
 	PrintTrace(config.Trace)
-
-	fmt.Println("  Path Condition:")
-	if len(config.Trace.PathCond.Operands) == 0 {
-		fmt.Println("    (none)")
-	} else {
-		fmt.Printf("    %s\n", formatSymbolicExpr(config.Trace.PathCond))
-	}
-	fmt.Println("===========================")
 }
 
 func FormatConfigDifferences(expected, actual Configuration) string {

@@ -143,6 +143,247 @@ func TestSpecExecute(t *testing.T) {
 			ExpectError: false,
 		},
 		{
+			Name: "Nested if-else with symbolic conditions",
+			Program: []assembler.OpCode{
+				{Mnemonic: "beqz", Operands: []string{"r1", "3"}},      // 条件: r1 == 0 (最初の分岐)
+				{Mnemonic: "add", Operands: []string{"r2", "r2", "1"}}, // 偽側: r2 = r2 + 1
+				{Mnemonic: "jmp", Operands: []string{"7"}},             // 偽側の終了
+				{Mnemonic: "beqz", Operands: []string{"r2", "6"}},      // 真側: 条件: r2 == 0
+				{Mnemonic: "add", Operands: []string{"r3", "r3", "1"}}, // 真側の偽側: r3 = r3 + 1
+				{Mnemonic: "jmp", Operands: []string{"7"}},             // 真側の偽側の終了
+				{Mnemonic: "add", Operands: []string{"r4", "r4", "1"}}, // 真側の真側: r4 = r4 + 1
+			},
+			InitialConfig: &executor.Configuration{
+				Registers: map[string]interface{}{
+					"r3": 0,
+					"r4": 0,
+				},
+				PC:     0,
+				Memory: map[int]interface{}{},
+				Trace:  executor.Trace{},
+			},
+			MaxSteps: 100,
+			ExpectedConfigs: []executor.Configuration{
+				{ // r1 == 0, r2 == 0 のとき
+					PC: 7,
+					Registers: map[string]interface{}{
+						"r3": 0,
+						"r4": 1,
+					},
+					Memory: map[int]interface{}{},
+					Trace: executor.Trace{
+						Observations: []executor.Observation{
+							{PC: 0, Type: executor.ObsTypeStart, Value: 0},
+							{PC: 0,
+								Type:  executor.ObsTypePC,
+								Value: executor.SymbolicExpr{Op: "!=", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r1"}}, 0}}},
+
+							{PC: 1,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r2"}},
+								Value:   executor.SymbolicExpr{Op: "+", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r2"}}, 1}}},
+							{PC: 2,
+								Type:  executor.ObsTypePC,
+								Value: executor.SymbolicExpr{Op: "jmp", Operands: []interface{}{7}}},
+							{PC: 3, //3じゃないほうがよくね
+								Type:  executor.ObsTypeRollback,
+								Value: 0},
+							{PC: 3,
+								Type:  executor.ObsTypeStart,
+								Value: 0}, //ここのvalueも通し番号にしたい？
+							{PC: 3,
+								Type:  executor.ObsTypePC,
+								Value: executor.SymbolicExpr{Op: "!=", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r2"}}, 0}}},
+							{PC: 4,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r3"}},
+								Value:   1},
+							{PC: 5,
+								Type:  executor.ObsTypePC,
+								Value: executor.SymbolicExpr{Op: "jmp", Operands: []interface{}{7}}},
+							{PC: 6, //このロールバックのPCはどこにするべき
+								Type:  executor.ObsTypeRollback,
+								Value: 0},
+							{PC: 6, Type: executor.ObsTypeStore, Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r4"}}, Value: 1},
+						},
+						PathCond: executor.SymbolicExpr{
+							Op: "&&",
+							Operands: []interface{}{
+								executor.SymbolicExpr{Op: "==", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r1"}}, 0}},
+								executor.SymbolicExpr{Op: "==", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r2"}}, 0}},
+							},
+						},
+					},
+				},
+				{ // r1 == 0, r2 != 0 のとき
+					PC: 7,
+					Registers: map[string]interface{}{
+						"r3": 1,
+						"r4": 0,
+					},
+					Memory: map[int]interface{}{},
+					Trace: executor.Trace{
+						Observations: []executor.Observation{
+							{PC: 0, Type: executor.ObsTypeStart, Value: 0},
+							{PC: 0,
+								Type:  executor.ObsTypePC,
+								Value: executor.SymbolicExpr{Op: "!=", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r1"}}, 0}}},
+
+							{PC: 1,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r2"}},
+								Value:   executor.SymbolicExpr{Op: "+", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r2"}}, 1}}},
+							{PC: 2,
+								Type:  executor.ObsTypePC,
+								Value: executor.SymbolicExpr{Op: "jmp", Operands: []interface{}{7}}},
+							{PC: 3, //3じゃないほうがよくね
+								Type:  executor.ObsTypeRollback,
+								Value: 0},
+							{PC: 3,
+								Type:  executor.ObsTypeStart,
+								Value: 0}, //ここのvalueも通し番号にしたい？
+							{PC: 3,
+								Type:  executor.ObsTypePC,
+								Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r2"}}, 0}}},
+							{PC: 6, Type: executor.ObsTypeStore, Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r4"}}, Value: 1},
+							{PC: 6,
+								Type:  executor.ObsTypeRollback,
+								Value: 0},
+							{PC: 4,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r3"}},
+								Value:   1},
+							{PC: 5,
+								Type:  executor.ObsTypePC,
+								Value: executor.SymbolicExpr{Op: "jmp", Operands: []interface{}{7}}},
+						},
+						PathCond: executor.SymbolicExpr{
+							Op: "&&",
+							Operands: []interface{}{
+								executor.SymbolicExpr{Op: "==", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r1"}}, 0}},
+								executor.SymbolicExpr{Op: "!=", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r2"}}, 0}},
+							},
+						},
+					},
+				},
+				{ // r1 != 0, r2 == 0 のとき
+					PC: 7,
+					Registers: map[string]interface{}{
+						"r2": executor.SymbolicExpr{
+							Op:       "+",
+							Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r2"}}, 1},
+						},
+						"r3": 0,
+						"r4": 0,
+					},
+					Memory: map[int]interface{}{},
+					Trace: executor.Trace{
+						Observations: []executor.Observation{
+							{PC: 0, Type: executor.ObsTypeStart, Value: 0},
+							{PC: 0,
+								Type:  executor.ObsTypePC,
+								Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r1"}}, 0}}},
+							{PC: 3,
+								Type:  executor.ObsTypeStart,
+								Value: 1}, //ここのvalueも通し番号にしたい？
+							{PC: 3,
+								Type:  executor.ObsTypePC,
+								Value: executor.SymbolicExpr{Op: "!=", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r2"}}, 0}}},
+							{PC: 4,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r3"}},
+								Value:   1},
+							{PC: 5,
+								Type:  executor.ObsTypePC,
+								Value: executor.SymbolicExpr{Op: "jmp", Operands: []interface{}{7}}},
+							{PC: 6, //このロールバックのPCはどこにするべき
+								Type:  executor.ObsTypeRollback,
+								Value: 1},
+							{PC: 6,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r4"}},
+								Value:   1},
+							{PC: 1, //3じゃないほうがよくね
+								Type:  executor.ObsTypeRollback,
+								Value: 0},
+							{PC: 1,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r2"}},
+								Value:   executor.SymbolicExpr{Op: "+", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r2"}}, 1}}},
+							{PC: 2,
+								Type:  executor.ObsTypePC,
+								Value: executor.SymbolicExpr{Op: "jmp", Operands: []interface{}{7}}},
+						},
+						PathCond: executor.SymbolicExpr{
+							Op: "&&",
+							Operands: []interface{}{
+								executor.SymbolicExpr{Op: "!=", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r1"}}, 0}},
+								executor.SymbolicExpr{Op: "==", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r2"}}, 0}},
+							},
+						},
+					},
+				},
+				{ // r1 != 0, r2 != 0 のとき
+					PC: 7,
+					Registers: map[string]interface{}{
+						"r2": executor.SymbolicExpr{
+							Op:       "+",
+							Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r2"}}, 1},
+						},
+						"r3": 0,
+						"r4": 0,
+					},
+					Memory: map[int]interface{}{},
+					Trace: executor.Trace{
+						Observations: []executor.Observation{
+							{PC: 0, Type: executor.ObsTypeStart, Value: 0},
+							{PC: 0,
+								Type:  executor.ObsTypePC,
+								Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r1"}}, 0}}},
+							{PC: 3,
+								Type:  executor.ObsTypeStart,
+								Value: 1}, //ここのvalueも通し番号にしたい？
+							{PC: 3,
+								Type:  executor.ObsTypePC,
+								Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r2"}}, 0}}},
+							{PC: 6,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r4"}},
+								Value:   1},
+							{PC: 6, //このロールバックのPCはどこにするべき
+								Type:  executor.ObsTypeRollback,
+								Value: 1},
+							{PC: 4,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r3"}},
+								Value:   1},
+							{PC: 5,
+								Type:  executor.ObsTypePC,
+								Value: executor.SymbolicExpr{Op: "jmp", Operands: []interface{}{7}}},
+							{PC: 1, //3じゃないほうがよくね
+								Type:  executor.ObsTypeRollback,
+								Value: 0},
+							{PC: 1,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r2"}},
+								Value:   executor.SymbolicExpr{Op: "+", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r2"}}, 1}}},
+							{PC: 2,
+								Type:  executor.ObsTypePC,
+								Value: executor.SymbolicExpr{Op: "jmp", Operands: []interface{}{7}}},
+						},
+						PathCond: executor.SymbolicExpr{
+							Op: "&&",
+							Operands: []interface{}{
+								executor.SymbolicExpr{Op: "!=", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r1"}}, 0}},
+								executor.SymbolicExpr{Op: "!=", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r2"}}, 0}},
+							},
+						},
+					},
+				},
+			},
+			ExpectError: false,
+		},
+		{
 			Name: "concreat single benq",
 			Program: []assembler.OpCode{
 				{Mnemonic: "beqz", Operands: []string{"r1", "10"}},
