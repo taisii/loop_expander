@@ -9,8 +9,9 @@ import (
 // AlwaysMispredictStep handles a single instruction under always-mispredict semantics.
 func AlwaysMispredictStep(
 	inst assembler.OpCode,
-	curConf *Configuration,
+	currentConf *Configuration,
 ) ([]*Configuration, bool, error) {
+	copiedConf := copyConfiguration(*currentConf)
 	newConfs := []*Configuration{}
 	isSpeculative := false // 投機実行が必要かどうかを示すフラグ
 
@@ -20,12 +21,11 @@ func AlwaysMispredictStep(
 		if len(inst.Operands) != 2 {
 			return nil, false, fmt.Errorf("beqz requires 2 operands, got %d", len(inst.Operands))
 		}
-		reg := inst.Operands[0]
-		target, err := evalExpr(inst.Operands[1], curConf)
+		target, err := evalExpr(inst.Operands[1], &copiedConf)
 		if err != nil {
 			return nil, false, err
 		}
-		condition, err := evalExpr(reg, curConf)
+		reg, err := evalExpr(inst.Operands[0], &copiedConf)
 		if err != nil {
 			return nil, false, err
 		}
@@ -37,7 +37,7 @@ func AlwaysMispredictStep(
 				Op:       "==",
 				Operands: []interface{}{reg, 0},
 			},
-			PC: curConf.PC,
+			PC: copiedConf.PC,
 		}
 		traceEventFalse := Observation{
 			Type: ObsTypePC,
@@ -45,13 +45,13 @@ func AlwaysMispredictStep(
 				Op:       "!=",
 				Operands: []interface{}{reg, 0},
 			},
-			PC: curConf.PC,
+			PC: copiedConf.PC,
 		}
 
-		switch condValue := condition.(type) {
+		switch condValue := reg.(type) {
 		case int:
 			// Concrete condition
-			newConf := *curConf
+			newConf := copiedConf
 			if condValue == 0 {
 				// Condition true
 				isSpeculative = true
@@ -70,17 +70,17 @@ func AlwaysMispredictStep(
 		case SymbolicExpr:
 			// Symbolic condition
 			isSpeculative = true
-			newConfTrue := *curConf
-			newConfFalse := *curConf
+			newConfTrue := copiedConf
+			newConfFalse := copiedConf
 
 			// True branch (condition is true, mispredicts to False)
 			newConfTrue.PC++
-			newConfTrue.Trace.PathCond = updatePathCond(curConf.Trace.PathCond, "==", reg)
+			newConfTrue.Trace.PathCond = updatePathCond(copiedConf.Trace.PathCond, "==", reg)
 			newConfTrue.Trace.Observations = append(newConfTrue.Trace.Observations, traceEventFalse) // 誤ってfalseのほうに進むからトレースはfalseのもの
 
 			// False branch (condition is false, mispredicts to True)
 			newConfFalse.PC = int(target.(int))
-			newConfFalse.Trace.PathCond = updatePathCond(curConf.Trace.PathCond, "!=", reg)
+			newConfFalse.Trace.PathCond = updatePathCond(copiedConf.Trace.PathCond, "!=", reg)
 			newConfFalse.Trace.Observations = append(newConfFalse.Trace.Observations, traceEventTrue) // 誤ってtrueのほうに進むからトレースはtrueのもの
 
 			// 両方の分岐を返す
@@ -92,7 +92,7 @@ func AlwaysMispredictStep(
 
 	default:
 		// Unsupported instructions are handled with the default step
-		conf, err := Step(inst, curConf)
+		conf, err := Step(inst, &copiedConf)
 		if err != nil {
 			return nil, false, err
 		}

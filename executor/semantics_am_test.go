@@ -40,20 +40,16 @@ func TestAlwaysMispredictStep(t *testing.T) {
 					},
 					Trace: executor.Trace{
 						PathCond: executor.SymbolicExpr{
-							Op: "==",
-							Operands: []interface{}{
-								"reg", 0,
-							},
+							Op:       "==",
+							Operands: []interface{}{0, 0},
 						},
 						Observations: []executor.Observation{
 							{
 								PC:   0,
 								Type: executor.ObsTypePC,
 								Value: executor.SymbolicExpr{
-									Op: "!=",
-									Operands: []interface{}{
-										"reg", 0,
-									},
+									Op:       "!=",
+									Operands: []interface{}{0, 0},
 								},
 							},
 						},
@@ -95,7 +91,13 @@ func TestAlwaysMispredictStep(t *testing.T) {
 						PathCond: executor.SymbolicExpr{
 							Op: "==",
 							Operands: []interface{}{
-								"reg", 0,
+								executor.SymbolicExpr{
+									Op: ">",
+									Operands: []interface{}{executor.SymbolicExpr{
+										Op:       "symbol",
+										Operands: []interface{}{"x"},
+									}, 0},
+								}, 0,
 							},
 						},
 						Observations: []executor.Observation{
@@ -105,7 +107,13 @@ func TestAlwaysMispredictStep(t *testing.T) {
 								Value: executor.SymbolicExpr{
 									Op: "!=",
 									Operands: []interface{}{
-										"reg", 0,
+										executor.SymbolicExpr{
+											Op: ">",
+											Operands: []interface{}{executor.SymbolicExpr{
+												Op:       "symbol",
+												Operands: []interface{}{"x"},
+											}, 0},
+										}, 0,
 									},
 								},
 							},
@@ -124,7 +132,13 @@ func TestAlwaysMispredictStep(t *testing.T) {
 						PathCond: executor.SymbolicExpr{
 							Op: "!=",
 							Operands: []interface{}{
-								"reg", 0,
+								executor.SymbolicExpr{
+									Op: ">",
+									Operands: []interface{}{executor.SymbolicExpr{
+										Op:       "symbol",
+										Operands: []interface{}{"x"},
+									}, 0},
+								}, 0,
 							},
 						},
 						Observations: []executor.Observation{
@@ -134,7 +148,13 @@ func TestAlwaysMispredictStep(t *testing.T) {
 								Value: executor.SymbolicExpr{
 									Op: "==",
 									Operands: []interface{}{
-										"reg", 0,
+										executor.SymbolicExpr{
+											Op: ">",
+											Operands: []interface{}{executor.SymbolicExpr{
+												Op:       "symbol",
+												Operands: []interface{}{"x"},
+											}, 0},
+										}, 0,
 									},
 								},
 							},

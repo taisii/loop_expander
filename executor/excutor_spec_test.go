@@ -53,18 +53,53 @@ func TestSpecExecute(t *testing.T) {
 			},
 			ExpectError: false,
 		},
-		// 投機的実行（ロールバック）
 		{
-			Name: "Rollback on speculative execution misprediction",
+			Name: "symbolic single benq ",
 			Program: []assembler.OpCode{
-				{Mnemonic: "beqz", Operands: []string{"r1", "3"}}, // 投機的実行を開始
+				{Mnemonic: "beqz", Operands: []string{"r1", "3"}},
 				{Mnemonic: "add", Operands: []string{"r2", "r2", "1"}},
 				{Mnemonic: "add", Operands: []string{"r3", "r3", "1"}},
 			},
 			InitialConfig: &executor.Configuration{},
 			MaxSteps:      10,
 			ExpectedConfigs: []executor.Configuration{
-				{ // r1 = 3のとき
+				{ // r1 == 0のとき
+					PC:        3,
+					Registers: map[string]interface{}{},
+					Memory:    map[int]interface{}{},
+					Trace: executor.Trace{
+						Observations: []executor.Observation{
+							{PC: 0, Type: executor.ObsTypeStart, Value: 0},
+							{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "!=", Operands: []interface{}{executor.SymbolicExpr{
+								Op: "symbol", Operands: []interface{}{"r1"}}, 0}}},
+							{PC: 1,
+								Type: executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{
+									Op:       "var",
+									Operands: []interface{}{"r2"}},
+								Value: executor.SymbolicExpr{Op: "+", Operands: []interface{}{executor.SymbolicExpr{
+									Op:       "symbol",
+									Operands: []interface{}{"r2"}}, 1}}},
+							{PC: 2,
+								Type: executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{
+									Op:       "var",
+									Operands: []interface{}{"r3"}},
+								Value: executor.SymbolicExpr{Op: "+", Operands: []interface{}{executor.SymbolicExpr{
+									Op:       "symbol",
+									Operands: []interface{}{"r3"}}, 1}}},
+							{PC: 3, Type: executor.ObsTypeRollback, Value: 0},
+						},
+						PathCond: executor.SymbolicExpr{
+							Op: "==",
+							Operands: []interface{}{
+								executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r1"}},
+								0,
+							},
+						},
+					},
+				},
+				{ // r1 != 0のとき
 					PC: 3,
 					Registers: map[string]interface{}{
 						"r2": executor.SymbolicExpr{
@@ -82,7 +117,8 @@ func TestSpecExecute(t *testing.T) {
 					Trace: executor.Trace{
 						Observations: []executor.Observation{
 							{PC: 0, Type: executor.ObsTypeStart, Value: 0},
-							{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "!=", Operands: []interface{}{"r1", 0}}},
+							{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{executor.SymbolicExpr{
+								Op: "symbol", Operands: []interface{}{"r1"}}, 0}}},
 							{PC: 1, Type: executor.ObsTypeRollback, Value: 0},
 							{PC: 1,
 								Type: executor.ObsTypeStore,
@@ -102,7 +138,7 @@ func TestSpecExecute(t *testing.T) {
 									Operands: []interface{}{"r3"}}, 1}}},
 						},
 						PathCond: executor.SymbolicExpr{
-							Op: "==",
+							Op: "!=",
 							Operands: []interface{}{
 								executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r1"}},
 								0,
@@ -110,27 +146,11 @@ func TestSpecExecute(t *testing.T) {
 						},
 					},
 				},
-				{
-					PC: 4, // 正常ルート（ロールバック後の状態）
-					Registers: map[string]interface{}{
-						"r1": 1,
-						"r2": 1,
-						"r3": 10,
-					},
-					Memory: map[int]interface{}{},
-					Trace: executor.Trace{
-						Observations: []executor.Observation{
-							{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{"x", 0}}},
-							{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{"x", 0}}},
-						},
-					},
-				},
 			},
 			ExpectError: false,
 		},
-		// 投機的実行（ロールバック）
 		{
-			Name: "Speculative branch rollback",
+			Name: "concreat single benq",
 			Program: []assembler.OpCode{
 				{Mnemonic: "beqz", Operands: []string{"r1", "10"}},
 				{Mnemonic: "add", Operands: []string{"r2", "r2", "1"}},
@@ -138,8 +158,7 @@ func TestSpecExecute(t *testing.T) {
 			InitialConfig: &executor.Configuration{
 				PC: 0,
 				Registers: map[string]interface{}{
-					"r1": 42, // 分岐条件が成立しない
-					"r2": 0,
+					"r1": 42,
 				},
 				Memory: map[int]interface{}{},
 				Trace:  executor.Trace{},
@@ -147,13 +166,35 @@ func TestSpecExecute(t *testing.T) {
 			MaxSteps: 10,
 			ExpectedConfigs: []executor.Configuration{
 				{
-					PC: 1,
+					PC: 2,
 					Registers: map[string]interface{}{
 						"r1": 42,
-						"r2": 1,
+						"r2": executor.SymbolicExpr{
+							Op: "+",
+							Operands: []interface{}{executor.SymbolicExpr{
+								Op:       "symbol",
+								Operands: []interface{}{"r2"}}, 1}},
 					},
 					Memory: map[int]interface{}{},
-					Trace:  executor.Trace{},
+					Trace: executor.Trace{
+						Observations: []executor.Observation{
+							{PC: 0, Type: executor.ObsTypeStart, Value: 0},
+							{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{42, 0}}},
+							{PC: 1, Type: executor.ObsTypeRollback, Value: 0},
+							{PC: 1,
+								Type: executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{
+									Op:       "var",
+									Operands: []interface{}{"r2"}},
+								Value: executor.SymbolicExpr{Op: "+", Operands: []interface{}{executor.SymbolicExpr{
+									Op:       "symbol",
+									Operands: []interface{}{"r2"}}, 1}}},
+						},
+						PathCond: executor.SymbolicExpr{
+							Op:       "!=",
+							Operands: []interface{}{42, 0},
+						},
+					},
 				},
 			},
 			ExpectError: false,

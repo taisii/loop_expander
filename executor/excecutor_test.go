@@ -39,19 +39,19 @@ func TestExecuteProgram(t *testing.T) {
 				// 分岐の真側のトレース
 				{
 					Observations: []executor.Observation{
-						{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{"x", 0}}},
+						{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"x"}}, 0}}},
 						{PC: 3, Type: executor.ObsTypeStore, Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"y"}}, Value: 2},
 					},
-					PathCond: executor.SymbolicExpr{Op: "==", Operands: []interface{}{"x", 0}},
+					PathCond: executor.SymbolicExpr{Op: "==", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"x"}}}}, 0}},
 				},
 				// 分岐の偽側のトレース
 				{
 					Observations: []executor.Observation{
-						{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{"x", 0}}},
+						{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"x"}}, 0}}},
 						{PC: 1, Type: executor.ObsTypeStore, Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"y"}}, Value: 1},
 						{PC: 2, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "jmp", Operands: []interface{}{5}}},
 					},
-					PathCond: executor.SymbolicExpr{Op: "!=", Operands: []interface{}{"x", 0}},
+					PathCond: executor.SymbolicExpr{Op: "!=", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"x"}}}}, 0}},
 				},
 			},
 
@@ -94,40 +94,40 @@ func TestExecuteProgram(t *testing.T) {
 				// 真側のトレース (x == 0, y == 0)
 				{
 					Observations: []executor.Observation{
-						{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{"x", 0}}},
-						{PC: 3, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{"y", 0}}},
+						{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"x"}}, 0}}},
+						{PC: 3, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"y"}}, 0}}},
 						{PC: 6, Type: executor.ObsTypeStore, Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"z"}}, Value: 3},
 					},
 					PathCond: executor.SymbolicExpr{
 						Op: "&&",
 						Operands: []interface{}{
-							executor.SymbolicExpr{Op: "==", Operands: []interface{}{"x", 0}},
-							executor.SymbolicExpr{Op: "==", Operands: []interface{}{"y", 0}},
+							executor.SymbolicExpr{Op: "==", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"x"}}, 0}},
+							executor.SymbolicExpr{Op: "==", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"y"}}, 0}},
 						},
 					},
 				},
 				// 偽側のトレース (x != 0)
 				{
 					Observations: []executor.Observation{
-						{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{"x", 0}}},
+						{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"x"}}, 0}}},
 						{PC: 1, Type: executor.ObsTypeStore, Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"y"}}, Value: 1},
 						{PC: 2, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "jmp", Operands: []interface{}{7}}},
 					},
-					PathCond: executor.SymbolicExpr{Op: "!=", Operands: []interface{}{"x", 0}},
+					PathCond: executor.SymbolicExpr{Op: "!=", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"x"}}, 0}},
 				},
 				// 偽側のトレース (x == 0, y != 0)
 				{
 					Observations: []executor.Observation{
-						{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{"x", 0}}},
-						{PC: 3, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{"y", 0}}},
+						{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"x"}}, 0}}},
+						{PC: 3, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"y"}}, 0}}},
 						{PC: 4, Type: executor.ObsTypeStore, Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"z"}}, Value: 2},
 						{PC: 5, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "jmp", Operands: []interface{}{7}}},
 					},
 					PathCond: executor.SymbolicExpr{
 						Op: "&&",
 						Operands: []interface{}{
-							executor.SymbolicExpr{Op: "==", Operands: []interface{}{"x", 0}},
-							executor.SymbolicExpr{Op: "!=", Operands: []interface{}{"y", 0}},
+							executor.SymbolicExpr{Op: "==", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"x"}}, 0}},
+							executor.SymbolicExpr{Op: "!=", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"y"}}, 0}},
 						},
 					},
 				},
@@ -135,7 +135,7 @@ func TestExecuteProgram(t *testing.T) {
 			ExpectError: false,
 		},
 		{
-			Name: "Infinite Loop in One Branch",
+			Name: "Concreat One Branch",
 			Program: []assembler.OpCode{
 				{Mnemonic: "beqz", Operands: []string{"x", "3"}}, // 条件: x == 0
 				{Mnemonic: "mov", Operands: []string{"y", "1"}},  // 偽側
@@ -149,15 +149,14 @@ func TestExecuteProgram(t *testing.T) {
 			},
 			MaxSteps: 10,
 			ExpectedTraces: []executor.Trace{
-				// 無限ループが発生しないため真側のみ
 				{
 					Observations: []executor.Observation{
-						{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{"x", 0}}},
+						{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{0, 0}}},
 						{PC: 3, Type: executor.ObsTypeStore, Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"z"}}, Value: 2},
 					},
 					PathCond: executor.SymbolicExpr{
 						Op:       "&&",
-						Operands: []interface{}{executor.SymbolicExpr{Op: "==", Operands: []interface{}{"x", 0}}},
+						Operands: []interface{}{executor.SymbolicExpr{Op: "==", Operands: []interface{}{0, 0}}},
 					},
 				},
 			},

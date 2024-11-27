@@ -8,8 +8,8 @@ import (
 
 // 実行パスの定義
 type ExecutionPath struct {
-	CurrentConf      Configuration      // Current configuration
-	SpeculativeStack []SpeculativeState // Stack of speculative states
+	CurrentConf      Configuration
+	SpeculativeStack []SpeculativeState
 }
 
 func initializePaths(initialConfig *Configuration) []ExecutionPath {
@@ -48,51 +48,72 @@ func handleRollback(currentConf Configuration, specState SpeculativeState) Confi
 	return rollbackConf
 }
 
+func reverseCopy(slice []ExecutionPath) []ExecutionPath {
+	// 新しいスライスを作成し、同じサイズを確保
+	reversed := make([]ExecutionPath, len(slice))
+
+	// リバース処理
+	n := len(slice)
+	for i := 0; i < n; i++ {
+		reversed[i] = slice[n-1-i]
+	}
+
+	return reversed
+}
+
 func handleSpecStart(newConfs []*Configuration, correctConfs []*Configuration, path ExecutionPath, defaultRemainingWindow int) []ExecutionPath {
 	var newPaths []ExecutionPath
 
 	for i, conf := range newConfs {
+		copiedPath := copyExecutionPath(path)
 		newSpecState := SpeculativeState{
-			ID:            len(path.SpeculativeStack),
+			ID:            len(copiedPath.SpeculativeStack),
 			RemainingWin:  defaultRemainingWindow,
-			StartPC:       path.CurrentConf.PC,
-			Configuration: path.CurrentConf,
+			StartPC:       copiedPath.CurrentConf.PC,
+			Configuration: copyConfiguration(copiedPath.CurrentConf),
 			CorrectPC:     correctConfs[i].PC, // 正しい実行と投機的実行の条件探索順序が同じであることを仮定
 		}
 
 		// SpeculativeStack が空でない場合は RemainingWin を計算
-		if len(path.SpeculativeStack) > 0 {
-			newSpecState.RemainingWin = path.SpeculativeStack[len(path.SpeculativeStack)-1].RemainingWin - 1
+		if len(copiedPath.SpeculativeStack) > 0 {
+			newSpecState.RemainingWin = copiedPath.SpeculativeStack[len(copiedPath.SpeculativeStack)-1].RemainingWin - 1
 		}
 
 		newPath := ExecutionPath{
 			CurrentConf:      *conf,
-			SpeculativeStack: append(path.SpeculativeStack, newSpecState),
+			SpeculativeStack: append(copiedPath.SpeculativeStack, copySpecState(newSpecState)),
 		}
 		observation := Observation{
-			PC:    path.CurrentConf.PC,
+			PC:    copiedPath.CurrentConf.PC,
 			Type:  ObsTypeStart,
 			Value: newSpecState.ID,
 		}
 
+		// Observation をコピー
+		var copiedObs []Observation
+		for _, ob := range newPath.CurrentConf.Trace.Observations {
+			copiedObs = append(copiedObs, copyObservation(ob))
+		}
+
 		// Observations に新しい要素を最後から2番目に挿入
-		obs := newPath.CurrentConf.Trace.Observations
-		if len(obs) >= 1 {
-			newPath.CurrentConf.Trace.Observations = append(obs[:len(obs)-1], observation, obs[len(obs)-1])
+		if len(copiedObs) >= 1 {
+			newPath.CurrentConf.Trace.Observations = append(copiedObs[:len(copiedObs)-1], observation, copiedObs[len(copiedObs)-1])
 		} else {
-			newPath.CurrentConf.Trace.Observations = append(obs, observation)
+			newPath.CurrentConf.Trace.Observations = append(copiedObs, observation)
 		}
 
 		newPaths = append(newPaths, newPath)
 	}
 
-	return newPaths
+	// スライスを末尾から出していくことでstackとしている。trueのほうから取り出したいからリバースして返す
+	return reverseCopy(newPaths)
 }
 
 // execute runs the given program with the provided initial configuration up to maxSteps.
 func SpecExecute(program []assembler.OpCode, initialConfig *Configuration, maxSteps int, remainingWindow int) ([]*Configuration, error) {
 
-	paths := initializePaths(initialConfig)
+	copiedConfig := copyConfiguration(*initialConfig)
+	paths := initializePaths(&copiedConfig)
 	var finalConfigs []*Configuration
 	stepCount := 0
 

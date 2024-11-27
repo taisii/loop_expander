@@ -7,125 +7,130 @@ import (
 )
 
 // Step executes a single instruction
-func Step(inst assembler.OpCode, conf *Configuration) ([]*Configuration, error) {
-	var traceEvent Observation // トレースイベントを初期化
-	traceEvent.PC = conf.PC    // 現在のプログラムカウンタを設定
+func Step(instruction assembler.OpCode, conf *Configuration) ([]*Configuration, error) {
+	copiedConf := copyConfiguration(*conf)
+	var traceEvent Observation    // トレースイベントを初期化
+	traceEvent.PC = copiedConf.PC // 現在のプログラムカウンタを設定
 
-	switch inst.Mnemonic {
+	switch instruction.Mnemonic {
 	case "mov":
 		// mov dest, src
-		if len(inst.Operands) != 2 {
-			return nil, fmt.Errorf("mov requires 2 operands, got %d", len(inst.Operands))
+		if len(instruction.Operands) != 2 {
+			return nil, fmt.Errorf("mov requires 2 operands, got %d", len(instruction.Operands))
 		}
-		dest := inst.Operands[0]
-		srcValue, err := evalExpr(inst.Operands[1], conf)
+		dest := instruction.Operands[0]
+		srcValue, err := evalExpr(instruction.Operands[1], &copiedConf)
 		if err != nil {
 			return nil, err
 		}
-		conf.Registers[dest] = srcValue
-		conf.PC++
+		copiedConf.Registers[dest] = srcValue
+		copiedConf.PC++
 
 		// トレースイベントを追加
 		traceEvent.Type = ObsTypeStore
 		traceEvent.Address = &SymbolicExpr{Op: "var", Operands: []interface{}{dest}}
 		traceEvent.Value = srcValue
-		conf.Trace.Observations = append(conf.Trace.Observations, traceEvent)
+		copiedConf.Trace.Observations = append(copiedConf.Trace.Observations, traceEvent)
 
-		return []*Configuration{conf}, nil
+		return []*Configuration{&copiedConf}, nil
 
 	case "add":
 		// add dest, src1, src2
-		if len(inst.Operands) != 3 {
-			return nil, fmt.Errorf("add requires 3 operands, got %d", len(inst.Operands))
+		if len(instruction.Operands) != 3 {
+			return nil, fmt.Errorf("add requires 3 operands, got %d", len(instruction.Operands))
 		}
-		dest := inst.Operands[0]
-		src1, err := evalExpr(inst.Operands[1], conf)
+		dest := instruction.Operands[0]
+		src1, err := evalExpr(instruction.Operands[1], &copiedConf)
 		if err != nil {
 			return nil, err
 		}
-		src2, err := evalExpr(inst.Operands[2], conf)
+		src2, err := evalExpr(instruction.Operands[2], &copiedConf)
 		if err != nil {
 			return nil, err
 		}
 		result, err := evalExpr(SymbolicExpr{
 			Op:       "+",
 			Operands: []interface{}{src1, src2},
-		}, conf)
+		}, &copiedConf)
 		if err != nil {
 			return nil, err
 		}
-		conf.Registers[dest] = result
-		conf.PC++
+		copiedConf.Registers[dest] = result
+		copiedConf.PC++
 
 		// トレースイベントを追加
 		traceEvent.Type = ObsTypeStore
 		traceEvent.Address = &SymbolicExpr{Op: "var", Operands: []interface{}{dest}}
 		traceEvent.Value = result
-		conf.Trace.Observations = append(conf.Trace.Observations, traceEvent)
+		copiedConf.Trace.Observations = append(copiedConf.Trace.Observations, traceEvent)
 
-		return []*Configuration{conf}, nil
+		return []*Configuration{&copiedConf}, nil
 
 	case "beqz":
 		// beqz reg, target
-		if len(inst.Operands) != 2 {
-			return nil, fmt.Errorf("beqz requires 2 operands, got %d", len(inst.Operands))
+		if len(instruction.Operands) != 2 {
+			return nil, fmt.Errorf("beqz requires 2 operands, got %d", len(instruction.Operands))
 		}
-		reg := inst.Operands[0]
-		target, err := evalExpr(inst.Operands[1], conf)
+		target, err := evalExpr(instruction.Operands[1], &copiedConf)
 		if err != nil {
 			return nil, err
 		}
-		condition, err := evalExpr(reg, conf)
+		reg, err := evalExpr(instruction.Operands[0], &copiedConf)
 		if err != nil {
 			return nil, err
 		}
 
-		traceEvent.Type = ObsTypePC
-		traceEvent.Value = SymbolicExpr{
-			Op:       "==",
-			Operands: []interface{}{reg, 0},
+		traceEventTrue := Observation{
+			PC:   conf.PC,
+			Type: ObsTypePC,
+			Value: SymbolicExpr{
+				Op:       "==",
+				Operands: []interface{}{reg, 0},
+			},
+		}
+		traceEventFalse := Observation{
+			PC:   conf.PC,
+			Type: ObsTypePC,
+			Value: SymbolicExpr{
+				Op:       "!=",
+				Operands: []interface{}{reg, 0},
+			},
 		}
 
-		switch condValue := condition.(type) {
+		switch condValue := reg.(type) {
 		case int:
 			// Concrete condition
 			if condValue == 0 {
 				// True branch
-				conf.PC = int(target.(int))
-				conf.Trace.PathCond = SymbolicExpr{
-					Op:       "&&",
-					Operands: []interface{}{conf.Trace.PathCond, SymbolicExpr{Op: "==", Operands: []interface{}{reg, 0}}},
-				}
-				conf.Trace.Observations = append(conf.Trace.Observations, traceEvent)
-				return []*Configuration{conf}, nil
+				copiedConf.PC = int(target.(int))
+				copiedConf.Trace.PathCond = updatePathCond(copiedConf.Trace.PathCond, "==", reg)
+				copiedConf.Trace.Observations = append(copiedConf.Trace.Observations, traceEventTrue)
+				return []*Configuration{&copiedConf}, nil
 			} else {
 				// False branch
-				conf.PC++
-				conf.Trace.PathCond = SymbolicExpr{
-					Op:       "&&",
-					Operands: []interface{}{conf.Trace.PathCond, SymbolicExpr{Op: "!=", Operands: []interface{}{reg, 0}}},
-				}
-				conf.Trace.Observations = append(conf.Trace.Observations, traceEvent)
-				return []*Configuration{conf}, nil
+				copiedConf.PC++
+				copiedConf.Trace.PathCond = updatePathCond(copiedConf.Trace.PathCond, "!=", reg)
+				copiedConf.Trace.Observations = append(copiedConf.Trace.Observations, traceEventFalse)
+				return []*Configuration{&copiedConf}, nil
 			}
 		case SymbolicExpr:
 			// Symbolic condition
-			confTrue := *conf
-			confFalse := *conf
+			confTrue := copiedConf
+			confFalse := copiedConf
 
 			// Copy registers and PathCond for each branch
-			confTrue.Registers = copyRegisters(conf.Registers)
-			confFalse.Registers = copyRegisters(conf.Registers)
+			confTrue.Registers = copyRegisters(copiedConf.Registers)
+			confFalse.Registers = copyRegisters(copiedConf.Registers)
 
 			// True branch
 			confTrue.PC = int(target.(int))
-			confTrue.Trace.PathCond = updatePathCond(conf.Trace.PathCond, "==", reg)
-			confTrue.Trace.Observations = append(confTrue.Trace.Observations, traceEvent)
+			confTrue.Trace.PathCond = updatePathCond(copiedConf.Trace.PathCond, "==", reg)
+			confTrue.Trace.Observations = append(confTrue.Trace.Observations, traceEventTrue)
 
 			// False branch
 			confFalse.PC++
-			confFalse.Trace.PathCond = updatePathCond(conf.Trace.PathCond, "!=", reg)
-			confFalse.Trace.Observations = append(confFalse.Trace.Observations, traceEvent)
+			confFalse.Trace.PathCond = updatePathCond(copiedConf.Trace.PathCond, "!=", reg)
+			confFalse.Trace.Observations = append(confFalse.Trace.Observations, traceEventFalse)
 
 			return []*Configuration{&confTrue, &confFalse}, nil
 
@@ -135,24 +140,24 @@ func Step(inst assembler.OpCode, conf *Configuration) ([]*Configuration, error) 
 
 	case "jmp":
 		// jmp target
-		if len(inst.Operands) != 1 {
-			return nil, fmt.Errorf("jmp requires 1 operand, got %d", len(inst.Operands))
+		if len(instruction.Operands) != 1 {
+			return nil, fmt.Errorf("jmp requires 1 operand, got %d", len(instruction.Operands))
 		}
-		target, err := evalExpr(inst.Operands[0], conf)
+		target, err := evalExpr(instruction.Operands[0], &copiedConf)
 		if err != nil {
 			return nil, err
 		}
-		conf.PC = int(target.(int))
+		copiedConf.PC = int(target.(int))
 
 		// トレースイベントを追加
 		traceEvent.Type = ObsTypePC
 		traceEvent.Value = SymbolicExpr{Op: "jmp", Operands: []interface{}{target}}
-		conf.Trace.Observations = append(conf.Trace.Observations, traceEvent)
+		copiedConf.Trace.Observations = append(copiedConf.Trace.Observations, traceEvent)
 
-		return []*Configuration{conf}, nil
+		return []*Configuration{&copiedConf}, nil
 
 	default:
-		return nil, fmt.Errorf("unsupported instruction: %s", inst.Mnemonic)
+		return nil, fmt.Errorf("unsupported instruction: %s", instruction.Mnemonic)
 	}
 }
 
