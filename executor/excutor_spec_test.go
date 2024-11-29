@@ -112,7 +112,7 @@ func TestSpecExecute(t *testing.T) {
 							{PC: 0, Type: executor.ObsTypeStart, Value: 0},
 							{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{executor.SymbolicExpr{
 								Op: "symbol", Operands: []interface{}{"r1"}}, 0}}},
-							{PC: 1, Type: executor.ObsTypeRollback, Value: 0},
+							{PC: 3, Type: executor.ObsTypeRollback, Value: 0},
 							{PC: 1,
 								Type: executor.ObsTypeStore,
 								Address: &executor.SymbolicExpr{
@@ -142,6 +142,273 @@ func TestSpecExecute(t *testing.T) {
 			},
 			ExpectError: false,
 		},
+		{
+			Name: "symbolic branch true with 7 add ops",
+			Program: []assembler.OpCode{
+				{Mnemonic: "beqz", Operands: []string{"r1", "7"}}, // if r1 == 0, jump to PC 8
+				{Mnemonic: "add", Operands: []string{"r2", "r2", "1"}},
+				{Mnemonic: "add", Operands: []string{"r3", "r3", "2"}},
+				{Mnemonic: "add", Operands: []string{"r4", "r4", "3"}},
+				{Mnemonic: "add", Operands: []string{"r5", "r5", "4"}},
+				{Mnemonic: "add", Operands: []string{"r6", "r6", "5"}},
+				{Mnemonic: "add", Operands: []string{"r7", "r7", "6"}},
+				{Mnemonic: "add", Operands: []string{"r8", "r8", "7"}},
+			},
+			InitialConfig: &executor.Configuration{},
+			MaxSteps:      100,
+			ExpectedConfigs: []executor.Configuration{
+				{ // r1 == 0のとき
+					PC: 8,
+					Registers: map[string]interface{}{
+						"r8": executor.SymbolicExpr{
+							Op: "+",
+							Operands: []interface{}{
+								executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r8"}},
+								7,
+							},
+						},
+					},
+					Memory: map[int]interface{}{},
+					Trace: executor.Trace{
+						Observations: []executor.Observation{
+							{PC: 0, Type: executor.ObsTypeStart, Value: 0},
+							{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{
+								Op: "!=",
+								Operands: []interface{}{
+									executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r1"}},
+									0,
+								},
+							}},
+							{PC: 1,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r2"}},
+								Value: executor.SymbolicExpr{
+									Op: "+",
+									Operands: []interface{}{
+										executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r2"}},
+										1,
+									},
+								}},
+							{PC: 2,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r3"}},
+								Value: executor.SymbolicExpr{
+									Op: "+",
+									Operands: []interface{}{
+										executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r3"}},
+										2,
+									},
+								}},
+							{PC: 3,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r4"}},
+								Value: executor.SymbolicExpr{
+									Op: "+",
+									Operands: []interface{}{
+										executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r4"}},
+										3,
+									},
+								}},
+							{PC: 4,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r5"}},
+								Value: executor.SymbolicExpr{
+									Op: "+",
+									Operands: []interface{}{
+										executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r5"}},
+										4,
+									},
+								}},
+							{PC: 5,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r6"}},
+								Value: executor.SymbolicExpr{
+									Op: "+",
+									Operands: []interface{}{
+										executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r6"}},
+										5,
+									},
+								}},
+							{PC: 6, Type: executor.ObsTypeRollback, Value: 0},
+							{PC: 7,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r8"}},
+								Value: executor.SymbolicExpr{
+									Op: "+",
+									Operands: []interface{}{
+										executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r8"}},
+										7,
+									},
+								}},
+						},
+						PathCond: executor.SymbolicExpr{
+							Op: "==",
+							Operands: []interface{}{
+								executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r1"}},
+								0,
+							},
+						},
+					},
+				},
+				{ // r1 != 0のとき
+					PC: 8,
+					Registers: map[string]interface{}{
+						"r2": executor.SymbolicExpr{
+							Op: "+",
+							Operands: []interface{}{
+								executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r2"}},
+								1,
+							},
+						},
+						"r3": executor.SymbolicExpr{
+							Op: "+",
+							Operands: []interface{}{
+								executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r3"}},
+								2,
+							},
+						},
+						"r4": executor.SymbolicExpr{
+							Op: "+",
+							Operands: []interface{}{
+								executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r4"}},
+								3,
+							},
+						},
+						"r5": executor.SymbolicExpr{
+							Op: "+",
+							Operands: []interface{}{
+								executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r5"}},
+								4,
+							},
+						},
+						"r6": executor.SymbolicExpr{
+							Op: "+",
+							Operands: []interface{}{
+								executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r6"}},
+								5,
+							},
+						},
+						"r7": executor.SymbolicExpr{
+							Op: "+",
+							Operands: []interface{}{
+								executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r7"}},
+								6,
+							},
+						},
+						"r8": executor.SymbolicExpr{
+							Op: "+",
+							Operands: []interface{}{
+								executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r8"}},
+								7,
+							},
+						},
+					},
+					Memory: map[int]interface{}{},
+					Trace: executor.Trace{
+						Observations: []executor.Observation{
+							{PC: 0, Type: executor.ObsTypeStart, Value: 0},
+							{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{
+								Op: "==",
+								Operands: []interface{}{
+									executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r1"}},
+									0,
+								},
+							}},
+							{PC: 7,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r8"}},
+								Value: executor.SymbolicExpr{
+									Op: "+",
+									Operands: []interface{}{
+										executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r8"}},
+										7,
+									},
+								}},
+							{PC: 8, Type: executor.ObsTypeRollback, Value: 0},
+							{PC: 1,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r2"}},
+								Value: executor.SymbolicExpr{
+									Op: "+",
+									Operands: []interface{}{
+										executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r2"}},
+										1,
+									},
+								}},
+							{PC: 2,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r3"}},
+								Value: executor.SymbolicExpr{
+									Op: "+",
+									Operands: []interface{}{
+										executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r3"}},
+										2,
+									},
+								}},
+							{PC: 3,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r4"}},
+								Value: executor.SymbolicExpr{
+									Op: "+",
+									Operands: []interface{}{
+										executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r4"}},
+										3,
+									},
+								}},
+							{PC: 4,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r5"}},
+								Value: executor.SymbolicExpr{
+									Op: "+",
+									Operands: []interface{}{
+										executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r5"}},
+										4,
+									},
+								}},
+							{PC: 5,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r6"}},
+								Value: executor.SymbolicExpr{
+									Op: "+",
+									Operands: []interface{}{
+										executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r6"}},
+										5,
+									},
+								}},
+							{PC: 6,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r7"}},
+								Value: executor.SymbolicExpr{
+									Op: "+",
+									Operands: []interface{}{
+										executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r7"}},
+										6,
+									},
+								}},
+							{PC: 7,
+								Type:    executor.ObsTypeStore,
+								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r8"}},
+								Value: executor.SymbolicExpr{
+									Op: "+",
+									Operands: []interface{}{
+										executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r8"}},
+										7,
+									},
+								}},
+						},
+						PathCond: executor.SymbolicExpr{
+							Op: "!=",
+							Operands: []interface{}{
+								executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r1"}},
+								0,
+							},
+						},
+					},
+				},
+			},
+			ExpectError: false,
+		},
+
 		{
 			Name: "Nested if-else with symbolic conditions",
 			Program: []assembler.OpCode{
@@ -185,7 +452,7 @@ func TestSpecExecute(t *testing.T) {
 							{PC: 2,
 								Type:  executor.ObsTypePC,
 								Value: executor.SymbolicExpr{Op: "jmp", Operands: []interface{}{7}}},
-							{PC: 3, //3じゃないほうがよくね
+							{PC: 7,
 								Type:  executor.ObsTypeRollback,
 								Value: 0},
 							{PC: 3,
@@ -201,7 +468,7 @@ func TestSpecExecute(t *testing.T) {
 							{PC: 5,
 								Type:  executor.ObsTypePC,
 								Value: executor.SymbolicExpr{Op: "jmp", Operands: []interface{}{7}}},
-							{PC: 6, //このロールバックのPCはどこにするべき
+							{PC: 7,
 								Type:  executor.ObsTypeRollback,
 								Value: 0},
 							{PC: 6, Type: executor.ObsTypeStore, Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r4"}}, Value: 1},
@@ -236,7 +503,7 @@ func TestSpecExecute(t *testing.T) {
 							{PC: 2,
 								Type:  executor.ObsTypePC,
 								Value: executor.SymbolicExpr{Op: "jmp", Operands: []interface{}{7}}},
-							{PC: 3, //3じゃないほうがよくね
+							{PC: 7,
 								Type:  executor.ObsTypeRollback,
 								Value: 0},
 							{PC: 3,
@@ -246,7 +513,7 @@ func TestSpecExecute(t *testing.T) {
 								Type:  executor.ObsTypePC,
 								Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{executor.SymbolicExpr{Op: "symbol", Operands: []interface{}{"r2"}}, 0}}},
 							{PC: 6, Type: executor.ObsTypeStore, Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r4"}}, Value: 1},
-							{PC: 6,
+							{PC: 7,
 								Type:  executor.ObsTypeRollback,
 								Value: 0},
 							{PC: 4,
@@ -296,14 +563,14 @@ func TestSpecExecute(t *testing.T) {
 							{PC: 5,
 								Type:  executor.ObsTypePC,
 								Value: executor.SymbolicExpr{Op: "jmp", Operands: []interface{}{7}}},
-							{PC: 6, //このロールバックのPCはどこにするべき
+							{PC: 7,
 								Type:  executor.ObsTypeRollback,
 								Value: 1},
 							{PC: 6,
 								Type:    executor.ObsTypeStore,
 								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r4"}},
 								Value:   1},
-							{PC: 1, //3じゃないほうがよくね
+							{PC: 7,
 								Type:  executor.ObsTypeRollback,
 								Value: 0},
 							{PC: 1,
@@ -350,7 +617,7 @@ func TestSpecExecute(t *testing.T) {
 								Type:    executor.ObsTypeStore,
 								Address: &executor.SymbolicExpr{Op: "var", Operands: []interface{}{"r4"}},
 								Value:   1},
-							{PC: 6, //このロールバックのPCはどこにするべき
+							{PC: 7,
 								Type:  executor.ObsTypeRollback,
 								Value: 1},
 							{PC: 4,
@@ -360,7 +627,7 @@ func TestSpecExecute(t *testing.T) {
 							{PC: 5,
 								Type:  executor.ObsTypePC,
 								Value: executor.SymbolicExpr{Op: "jmp", Operands: []interface{}{7}}},
-							{PC: 1, //3じゃないほうがよくね
+							{PC: 7,
 								Type:  executor.ObsTypeRollback,
 								Value: 0},
 							{PC: 1,
@@ -414,7 +681,7 @@ func TestSpecExecute(t *testing.T) {
 						Observations: []executor.Observation{
 							{PC: 0, Type: executor.ObsTypeStart, Value: 0},
 							{PC: 0, Type: executor.ObsTypePC, Value: executor.SymbolicExpr{Op: "==", Operands: []interface{}{42, 0}}},
-							{PC: 1, Type: executor.ObsTypeRollback, Value: 0},
+							{PC: 10, Type: executor.ObsTypeRollback, Value: 0},
 							{PC: 1,
 								Type: executor.ObsTypeStore,
 								Address: &executor.SymbolicExpr{
@@ -473,6 +740,6 @@ func TestSpecExecute(t *testing.T) {
 
 func specExecuteWrapper(program []assembler.OpCode, initialConfig *executor.Configuration, maxSteps int) ([]*executor.Configuration, error) {
 	// ここで remainingWindow を固定値（例: 10）として渡す
-	const remainingWindow = 10
+	const remainingWindow = 5
 	return executor.SpecExecute(program, initialConfig, maxSteps, remainingWindow)
 }

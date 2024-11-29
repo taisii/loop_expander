@@ -41,7 +41,7 @@ func handleRollback(currentConf Configuration, specState SpeculativeState) Confi
 		Observation{
 			Type:  ObsTypeRollback,
 			Value: specState.ID,
-			PC:    rollbackConf.PC,
+			PC:    currentConf.PC,
 		},
 	)
 
@@ -126,6 +126,18 @@ func SpecExecute(program []assembler.OpCode, initialConfig *Configuration, maxSt
 			currentPath := paths[len(paths)-1]
 			paths = paths[:len(paths)-1]
 
+			// Remaining Windowが0になった時の処理
+			if len(currentPath.SpeculativeStack) > 0 {
+				currentSpeclativeStack := currentPath.SpeculativeStack[len(currentPath.SpeculativeStack)-1]
+
+				if currentSpeclativeStack.RemainingWin <= 0 {
+					currentPath.SpeculativeStack = currentPath.SpeculativeStack[:len(currentPath.SpeculativeStack)-1]
+					currentPath.CurrentConf = handleRollback(currentPath.CurrentConf, currentSpeclativeStack)
+					paths = append(paths, currentPath)
+					continue
+				}
+			}
+
 			// プログラム終了判定
 			if currentPath.CurrentConf.PC >= len(program) {
 				if len(currentPath.SpeculativeStack) > 0 {
@@ -159,6 +171,11 @@ func SpecExecute(program []assembler.OpCode, initialConfig *Configuration, maxSt
 			} else {
 				// 通常の命令実行
 				currentPath.CurrentConf = *newConfs[0]
+
+				//Remaining Windowの操作
+				if len(currentPath.SpeculativeStack) > 0 {
+					currentPath.SpeculativeStack[len(currentPath.SpeculativeStack)-1].RemainingWin--
+				}
 				paths = append(paths, currentPath)
 			}
 		} else {
