@@ -184,6 +184,91 @@ func TestStep(t *testing.T) {
 			},
 			ExpectError: false,
 		},
+		{
+			Name: "Load operations with symbolic expressions",
+			InitialConf: executor.Configuration{
+				PC: 0,
+				Registers: map[string]interface{}{
+					"x": 2, // レジスタ x にインデックス値を設定
+				},
+				Memory: map[int]interface{}{
+					10: 100, // メモリアドレス 10 に値 100 を格納 (配列の一部と考える)
+					14: 200, // メモリアドレス 14 に値 200 を格納
+				},
+			},
+			Instruction: assembler.OpCode{
+				Mnemonic: "load",
+				Operands: []string{"y", "10+x*2"}, // メモリアドレスを計算して読み取り
+			},
+			ExpectedConfigs: []executor.Configuration{
+				// Expected configuration after executing the load instruction
+				{
+					PC: 1,
+					Registers: map[string]interface{}{
+						"x": 2,
+						"y": 200, // メモリアドレス 10+(2*2)=14 の値が y に格納される
+					},
+					Memory: map[int]interface{}{
+						10: 100,
+						14: 200,
+					},
+					Trace: executor.Trace{
+						Observations: []executor.Observation{
+							{
+								PC:      0,
+								Type:    executor.ObsTypeLoad,
+								Address: 14,
+								Value:   200, // 読み取られた値
+							},
+						},
+					},
+				},
+			},
+			ExpectError: false,
+		},
+		{
+			Name: "Store operation with symbolic index",
+			InitialConf: executor.Configuration{
+				PC: 0,
+				Registers: map[string]interface{}{
+					"x": 1,   // レジスタ x にインデックス値を設定
+					"z": 300, // レジスタ z に格納する値
+				},
+				Memory: map[int]interface{}{
+					10: 100, // メモリアドレス 10 に値 100 を格納
+					12: 200, // メモリアドレス 12 に値 200 を格納
+				},
+			},
+			Instruction: assembler.OpCode{
+				Mnemonic: "store",
+				Operands: []string{"z", "10+x*2"}, // メモリアドレスを計算して z の値を格納
+			},
+			ExpectedConfigs: []executor.Configuration{
+				// Expected configuration after executing the store instruction
+				{
+					PC: 1,
+					Registers: map[string]interface{}{
+						"x": 1,
+						"z": 300, // レジスタ z の値は変更なし
+					},
+					Memory: map[int]interface{}{
+						10: 100, // メモリアドレス 10 の値は変更なし
+						12: 300, // メモリアドレス 10+(1*2)=12 に z の値 (300) が格納される
+					},
+					Trace: executor.Trace{
+						Observations: []executor.Observation{
+							{
+								PC:      0,
+								Type:    executor.ObsTypeStore,
+								Address: 12,
+								Value:   300, // 書き込まれた値
+							},
+						},
+					},
+				},
+			},
+			ExpectError: false,
+		},
 
 		{
 			Name: "Symbolic add",

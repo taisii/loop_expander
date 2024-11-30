@@ -51,6 +51,12 @@ func evalExpr(expr interface{}, conf *Configuration) (interface{}, error) {
 		if expression.Op == "symbol" {
 			return expression, nil
 		}
+
+		// パーサーで生成されたものの場合は中身をそのまま返す
+		if expression.Op == "value" {
+			return evalExpr(expression.Operands[0], conf)
+		}
+
 		// シンボリック式を評価
 		evaluatedOperands := make([]interface{}, len(expression.Operands))
 		for i, operand := range expression.Operands {

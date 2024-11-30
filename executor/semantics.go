@@ -138,6 +138,83 @@ func Step(instruction assembler.OpCode, conf *Configuration) ([]*Configuration, 
 			return nil, fmt.Errorf("unexpected type for condition: %T", condValue)
 		}
 
+	case "load":
+		// load dest, addr
+		if len(instruction.Operands) != 2 {
+			return nil, fmt.Errorf("load requires 2 operands, got %d", len(instruction.Operands))
+		}
+		dest := instruction.Operands[0]
+		addrExpr, err := ParseSymbolicExpr(instruction.Operands[1])
+		if err != nil {
+			return nil, err
+		}
+
+		// アドレス式を評価
+		addrValue, err := evalExpr(*addrExpr, &copiedConf)
+		if err != nil {
+			return nil, err
+		}
+
+		// メモリから値を取得
+		address, ok := addrValue.(int)
+		if !ok {
+			return nil, fmt.Errorf("address must be an integer, got %T", addrValue)
+		}
+		value, exists := copiedConf.Memory[address]
+		if !exists {
+			return nil, fmt.Errorf("memory address %d not found", address)
+		}
+
+		// 値をレジスタに保存
+		copiedConf.Registers[dest] = value
+		copiedConf.PC++
+
+		// トレースイベントを追加
+		traceEvent.Type = ObsTypeLoad
+		traceEvent.Address = address
+		traceEvent.Value = value
+		copiedConf.Trace.Observations = append(copiedConf.Trace.Observations, traceEvent)
+
+		return []*Configuration{&copiedConf}, nil
+
+	case "store":
+		// store value, addr
+		if len(instruction.Operands) != 2 {
+			return nil, fmt.Errorf("store requires 2 operands, got %d", len(instruction.Operands))
+		}
+		valueExpr := instruction.Operands[0]
+		addressExpression, err := ParseSymbolicExpr(instruction.Operands[1])
+		if err != nil {
+			return nil, err
+		}
+
+		// 値とアドレスを評価
+		value, err := evalExpr(valueExpr, &copiedConf)
+		if err != nil {
+			return nil, err
+		}
+		addrValue, err := evalExpr(*addressExpression, &copiedConf)
+		if err != nil {
+			return nil, err
+		}
+
+		address, ok := addrValue.(int)
+		if !ok {
+			return nil, fmt.Errorf("address must be an integer, got %T", addrValue)
+		}
+
+		// メモリを更新
+		copiedConf.Memory[address] = value
+		copiedConf.PC++
+
+		// トレースイベントを追加
+		traceEvent.Type = ObsTypeStore
+		traceEvent.Address = addrValue
+		traceEvent.Value = value
+		copiedConf.Trace.Observations = append(copiedConf.Trace.Observations, traceEvent)
+
+		return []*Configuration{&copiedConf}, nil
+
 	case "jmp":
 		// jmp target
 		if len(instruction.Operands) != 1 {

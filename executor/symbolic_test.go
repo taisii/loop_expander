@@ -203,6 +203,48 @@ func TestEvalExprWithStruct(t *testing.T) {
 			}, // Symbolic result
 			expectError: false,
 		},
+		{
+			name: "Nested symbolic concreat value",
+			initialConf: &Configuration{
+				Registers: map[string]interface{}{
+					"x": 2,
+					"y": 0,
+				},
+			},
+			symbolicExpr: SymbolicExpr{
+				Op: "+",
+				Operands: []interface{}{10, SymbolicExpr{
+					Op:       "*",
+					Operands: []interface{}{2, "x"},
+				}},
+			},
+			expectedResult: 14,
+			expectError:    false,
+		},
+		{
+			name: "Nested parsed concreat value",
+			initialConf: &Configuration{
+				Registers: map[string]interface{}{
+					"x": 2,
+					"y": 0,
+				},
+			},
+			symbolicExpr: SymbolicExpr{
+				Op: "+",
+				Operands: []interface{}{10, SymbolicExpr{
+					Op: "*",
+					Operands: []interface{}{SymbolicExpr{
+						Op:       "value",
+						Operands: []interface{}{2},
+					}, SymbolicExpr{
+						Op:       "value",
+						Operands: []interface{}{"x"},
+					}},
+				}},
+			},
+			expectedResult: 14,
+			expectError:    false,
+		},
 	}
 
 	// Execute each test case
