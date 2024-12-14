@@ -1,6 +1,7 @@
 package loop_expander_test
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -77,6 +78,37 @@ func TestDetectLoops(t *testing.T) {
 				{3, 4, 5}, // 3 -> 4 -> 5 -> 3 のループ
 			},
 		},
+		{
+			name: "Nested loops",
+			assembly: &assembler.Assembler{
+				Program: []assembler.Instruction{
+					{Addr: 0, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
+					{Addr: 1, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"L5"}}},
+					{Addr: 2, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"y", "1"}}},
+					{Addr: 3, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"L5"}}},
+					{Addr: 4, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"z", "2"}}},
+					{Addr: 5, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"L1"}}},
+					{Addr: 6, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"w", "3"}}},
+					{Addr: 7, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"L1"}}},
+				},
+				Labels: map[string]int{
+					"L1": 1,
+					"L2": 2,
+					"L3": 3,
+					"L4": 4,
+					"L5": 5,
+					"L6": 6,
+				},
+			},
+			expected: [][]int{
+				{1, 5},
+				{1, 5, 6},
+				{1, 2, 3, 5},
+				{1, 2, 3, 4, 5},
+				{1, 2, 3, 5, 6},
+				{1, 2, 3, 4, 5, 6},
+			},
+		},
 		// 他のテストケースを追加...
 	}
 
@@ -89,7 +121,8 @@ func TestDetectLoops(t *testing.T) {
 			}
 			loops := loop_expander.DetectLoops(cfg)
 			if !reflect.DeepEqual(loops, tc.expected) {
-				loop_expander.PrintCFG(cfg, tc.assembly)
+				dot := loop_expander.ToDOT(cfg) // DOT言語を取得
+				fmt.Println(dot)                // DOT言語を出力
 				t.Errorf("Unexpected loops: got %v, want %v", loops, tc.expected)
 			}
 		})

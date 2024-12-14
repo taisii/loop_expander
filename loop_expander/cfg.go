@@ -3,6 +3,7 @@ package loop_expander
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/taisii/go-project/assembler"
 )
@@ -117,4 +118,23 @@ func PrintCFG(cfg *ControlFlowGraph, asm *assembler.Assembler) {
 		}
 		fmt.Println()
 	}
+}
+
+func ToDOT(cfg *ControlFlowGraph) string {
+	var sb strings.Builder
+	sb.WriteString("digraph CFG {\n")
+	for i, block := range cfg.Blocks {
+		// ノードのラベルを生成 (ブロック番号とアドレスのみ)
+		nodeLabel := fmt.Sprintf("Block %d\nAddr: %d-%d", i, block.StartAddress, block.EndAddress)
+
+		// ノードを記述
+		sb.WriteString(fmt.Sprintf("  %d [label=\"%s\"];\n", i, nodeLabel))
+
+		// エッジを記述
+		for _, succ := range block.Succs {
+			sb.WriteString(fmt.Sprintf("  %d -> %d;\n", i, succ))
+		}
+	}
+	sb.WriteString("}\n")
+	return sb.String()
 }
