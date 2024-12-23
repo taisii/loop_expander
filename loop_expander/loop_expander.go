@@ -25,8 +25,8 @@ func Loop_expander(asm *assembler.Assembler, maxUnrollCount int) (*assembler.Ass
 		return asm, nil
 	}
 
-	StartAddress := loops[0][0]
-	loopEndAddress := loops[0][len(loops[0])-1]
+	StartAddress := cfg.Blocks[loops[0][0]].StartAddress
+	loopEndAddress := cfg.Blocks[loops[0][len(loops[0])-1]].EndAddress
 	loopProgram := asm.Program[StartAddress:]
 	loopLength := len(loopProgram)
 

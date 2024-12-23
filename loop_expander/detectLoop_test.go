@@ -100,9 +100,30 @@ func TestDetectLoops(t *testing.T) {
 					"L6": 6,
 				},
 			},
-			expected: [][]int{// ループが少なくとも一つ検出できていればよい
+			expected: [][]int{ // ループが少なくとも一つ検出できていればよい
 				{1, 2, 3, 4, 5},
 				{1, 2, 3, 4, 5, 6},
+			},
+		},
+		{
+			name: "nested loop (not supported)",
+			assembly: &assembler.Assembler{
+				Program: []assembler.Instruction{
+					{Addr: 0, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+					{Addr: 1, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
+					{Addr: 2, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"InnerLoop"}}},
+					{Addr: 3, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"y", "1"}}},
+					{Addr: 4, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"y", "InnerLoop"}}},
+					{Addr: 5, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+				},
+				Labels: map[string]int{
+					"OuterLoop": 1,
+					"InnerLoop": 3,
+				},
+			},
+			expected: [][]int{ // ループが少なくとも一つ検出できていればよい
+				{2},
+				{1, 2, 3},
 			},
 		},
 		// 他のテストケースを追加...
