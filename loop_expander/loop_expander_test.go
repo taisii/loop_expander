@@ -48,12 +48,20 @@ func TestLoop_expander(t *testing.T) {
 				Program: []assembler.Instruction{
 					{Addr: 0, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
 					{Addr: 1, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"LoopStart_0"}}},
-					{Addr: 2, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
-					{Addr: 3, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"LoopStart_1"}}},
-					{Addr: 4, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
-					{Addr: 5, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"LoopStart_2"}}},
+					{Addr: 2, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"programEnd"}}},
+					{Addr: 3, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
+					{Addr: 4, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"LoopStart_1"}}},
+					{Addr: 5, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"programEnd"}}},
+					{Addr: 6, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
+					{Addr: 7, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"LoopStart_2"}}},
+					{Addr: 8, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"programEnd"}}},
 				},
-				Labels: map[string]int{"LoopStart": 0, "LoopStart_0": 2, "LoopStart_1": 4, "LoopStart_2": 6},
+				Labels: map[string]int{
+					"LoopStart":   0,
+					"LoopStart_0": 3,
+					"LoopStart_1": 6,
+					"LoopStart_2": 9,
+					"programEnd":  9},
 			},
 		},
 		{
@@ -74,16 +82,20 @@ func TestLoop_expander(t *testing.T) {
 					{Addr: 0, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"LoopStart"}}},
 					{Addr: 1, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
 					{Addr: 2, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"LoopStart_0"}}},
-					{Addr: 3, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
-					{Addr: 4, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"LoopStart_1"}}},
-					{Addr: 5, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
-					{Addr: 6, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"LoopStart_2"}}},
+					{Addr: 3, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"programEnd"}}},
+					{Addr: 4, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
+					{Addr: 5, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"LoopStart_1"}}},
+					{Addr: 6, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"programEnd"}}},
+					{Addr: 7, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
+					{Addr: 8, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"LoopStart_2"}}},
+					{Addr: 9, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"programEnd"}}},
 				},
 				Labels: map[string]int{
 					"LoopStart":   1,
-					"LoopStart_0": 3,
-					"LoopStart_1": 5,
-					"LoopStart_2": 7,
+					"LoopStart_0": 4,
+					"LoopStart_1": 7,
+					"LoopStart_2": 10,
+					"programEnd":  10,
 				},
 			},
 			expectedError: nil,
@@ -108,62 +120,147 @@ func TestLoop_expander(t *testing.T) {
 					{Addr: 1, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"LoopStart_0"}}},
 					{Addr: 2, OpCode: assembler.OpCode{Mnemonic: "add", Operands: []string{"x", "1"}}},
 					{Addr: 3, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"LoopStart_0"}}},
-					{Addr: 4, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
-					{Addr: 5, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"LoopStart_1"}}},
-					{Addr: 6, OpCode: assembler.OpCode{Mnemonic: "add", Operands: []string{"x", "1"}}},
-					{Addr: 7, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"LoopStart_1"}}},
-					{Addr: 8, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
-					{Addr: 9, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"LoopStart_2"}}},
-					{Addr: 10, OpCode: assembler.OpCode{Mnemonic: "add", Operands: []string{"x", "1"}}},
+					{Addr: 4, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"programEnd"}}},
+					{Addr: 5, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
+					{Addr: 6, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"LoopStart_1"}}},
+					{Addr: 7, OpCode: assembler.OpCode{Mnemonic: "add", Operands: []string{"x", "1"}}},
+					{Addr: 8, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"LoopStart_1"}}},
+					{Addr: 9, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"programEnd"}}},
+					{Addr: 10, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
 					{Addr: 11, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"LoopStart_2"}}},
+					{Addr: 12, OpCode: assembler.OpCode{Mnemonic: "add", Operands: []string{"x", "1"}}},
+					{Addr: 13, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"LoopStart_2"}}},
+					{Addr: 14, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"programEnd"}}},
 				},
 				Labels: map[string]int{
 					"LoopStart":   0,
-					"LoopStart_0": 4,
-					"LoopStart_1": 8,
-					"LoopStart_2": 12,
+					"LoopStart_0": 5,
+					"LoopStart_1": 10,
+					"LoopStart_2": 15,
+					"programEnd":  15,
 				},
 			},
 			expectedError: nil,
 		},
 		{
-			name: "nested loop (not supported)",
+			name: "Loop with beqz",
 			inputAsm: &assembler.Assembler{
 				Program: []assembler.Instruction{
-					{Addr: 0, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
-					{Addr: 1, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
-					{Addr: 2, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"InnerLoop"}}},
-					{Addr: 3, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"y", "1"}}},
-					{Addr: 4, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"y", "InnerLoop"}}},
-					{Addr: 5, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+					{Addr: 0, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
+					{Addr: 1, OpCode: assembler.OpCode{Mnemonic: "add", Operands: []string{"x", "1"}}},
+					{Addr: 2, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"x", "LoopStart"}}},
 				},
 				Labels: map[string]int{
-					"OuterLoop": 1,
-					"InnerLoop": 3,
+					"LoopStart": 1,
 				},
 			},
-			maxUnrollCount: 2,
+			maxUnrollCount: 3,
 			expectedAsm: &assembler.Assembler{
 				Program: []assembler.Instruction{
-					{Addr: 0, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
-					{Addr: 1, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
-					{Addr: 2, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"InnerLoop"}}},
-					{Addr: 3, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"y", "1"}}},
-					{Addr: 4, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"y", "InnerLoop_0"}}},
-					{Addr: 5, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
-					{Addr: 6, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"y", "1"}}},
-					{Addr: 7, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"y", "InnerLoop_1"}}},
-					{Addr: 8, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+					{Addr: 0, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
+					{Addr: 1, OpCode: assembler.OpCode{Mnemonic: "add", Operands: []string{"x", "1"}}},
+					{Addr: 2, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"x", "LoopStart_0"}}},
+					{Addr: 3, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"programEnd"}}},
+					{Addr: 4, OpCode: assembler.OpCode{Mnemonic: "add", Operands: []string{"x", "1"}}},
+					{Addr: 5, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"x", "LoopStart_1"}}},
+					{Addr: 6, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"programEnd"}}},
+					{Addr: 7, OpCode: assembler.OpCode{Mnemonic: "add", Operands: []string{"x", "1"}}},
+					{Addr: 8, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"x", "LoopStart_2"}}},
+					{Addr: 9, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"programEnd"}}},
 				},
 				Labels: map[string]int{
-					"OuterLoop":   1,
-					"InnerLoop":   3,
-					"InnerLoop_0": 6,
-					"InnerLoop_1": 9,
+					"LoopStart":   1,
+					"LoopStart_0": 4,
+					"LoopStart_1": 7,
+					"LoopStart_2": 10,
+					"programEnd":  10,
 				},
 			},
 			expectedError: nil,
 		},
+		// ネストされたループのテストケース、今回の論文では対応しない
+		// {
+		// 	name: "nested loop (not supported)",
+		// 	inputAsm: &assembler.Assembler{
+		// 		Program: []assembler.Instruction{
+		// 			{Addr: 0, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+		// 			{Addr: 1, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
+		// 			{Addr: 2, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"InnerLoop"}}},
+		// 			{Addr: 3, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"y", "1"}}},
+		// 			{Addr: 4, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"y", "InnerLoop"}}},
+		// 			{Addr: 5, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+		// 		},
+		// 		Labels: map[string]int{
+		// 			"OuterLoop": 1,
+		// 			"InnerLoop": 3,
+		// 		},
+		// 	},
+		// 	maxUnrollCount: 2,
+		// 	expectedAsm: &assembler.Assembler{
+		// 		Program: []assembler.Instruction{
+		// 			{Addr: 0, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+		// 			{Addr: 1, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
+		// 			{Addr: 2, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"InnerLoop"}}},
+		// 			{Addr: 3, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"y", "1"}}},
+		// 			{Addr: 4, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"y", "InnerLoop_0"}}},
+		// 			{Addr: 5, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+		// 			{Addr: 6, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"y", "1"}}},
+		// 			{Addr: 7, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"y", "InnerLoop_1"}}},
+		// 			{Addr: 8, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+		// 		},
+		// 		Labels: map[string]int{
+		// 			"OuterLoop":   1,
+		// 			"InnerLoop":   3,
+		// 			"InnerLoop_0": 6,
+		// 			"InnerLoop_1": 9,
+		// 		},
+		// 	},
+		// 	expectedError: nil,
+		// },
+		// ネストされたループのテストケース、今回の論文では対応しない
+		// 		{
+		// 	name: "loop_expander",
+		// 	inputAsm: &assembler.Assembler{
+		// 		Program: []assembler.Instruction{
+		// 			{Addr: 0, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+		// 			{Addr: 1, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
+		// 			{Addr: 2, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"InnerLoop"}}},
+		// 			{Addr: 3, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"y", "1"}}},
+		// 			{Addr: 4, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"y", "InnerLoop_0"}}},
+		// 			{Addr: 5, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+		// 			{Addr: 6, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"y", "1"}}},
+		// 			{Addr: 7, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"y", "InnerLoop_1"}}},
+		// 			{Addr: 8, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+		// 		},
+		// 		Labels: map[string]int{
+		// 			"OuterLoop":   1,
+		// 			"InnerLoop":   3,
+		// 			"InnerLoop_0": 6,
+		// 			"InnerLoop_1": 9,
+		// 		},
+		// 	},
+		// 	maxUnrollCount: 2,
+		// 	expectedAsm: &assembler.Assembler{
+		// 		Program: []assembler.Instruction{
+		// 			{Addr: 0, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+		// 			{Addr: 1, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
+		// 			{Addr: 2, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"InnerLoop"}}},
+		// 			{Addr: 3, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"y", "1"}}},
+		// 			{Addr: 4, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"y", "InnerLoop_0"}}},
+		// 			{Addr: 5, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+		// 			{Addr: 6, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"y", "1"}}},
+		// 			{Addr: 7, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"y", "InnerLoop_1"}}},
+		// 			{Addr: 8, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+		// 		},
+		// 		Labels: map[string]int{
+		// 			"OuterLoop":   1,
+		// 			"InnerLoop":   3,
+		// 			"InnerLoop_0": 6,
+		// 			"InnerLoop_1": 9,
+		// 		},
+		// 	},
+		// 	expectedError: nil,
+		// },
 	}
 
 	for _, tc := range testCases {
@@ -182,8 +279,14 @@ func TestLoop_expander(t *testing.T) {
 			}
 
 			if !assembler.CompareAssembler(resultAsm, tc.expectedAsm) {
-				assembler.DumpBasic(resultAsm)
-				t.Errorf("%s differs from expected:\n%s", tc.name, assembler.DiffAssembler(resultAsm, tc.expectedAsm)) // DiffAssemblerで差分を出力
+				// assembler.DumpBasic(resultAsm)
+				// resultCFG, err := loop_expander.BuildControlFlowGraph(resultAsm)
+				// if err != nil {
+				// 	fmt.Println(err)
+				// }
+				// dot := loop_expander.ToDOT(resultCFG)
+				// fmt.Println(dot)
+				t.Errorf("%s differs from expected:\n%s\n%s", tc.name, assembler.DiffAssembler(resultAsm, tc.expectedAsm), assembler.DumpBasicString(resultAsm)) // DiffAssemblerで差分を出力
 			}
 		})
 	}

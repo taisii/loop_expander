@@ -27,7 +27,6 @@ func detectLoopsDFS(cfg *ControlFlowGraph, blockIndex int, visited map[int]bool,
 			detectLoopsDFS(cfg, succIndex, visited, stack, loops)
 		}
 	}
-
 	stack = stack[:len(stack)-1] // スタックから現在のブロックを削除
 }
 

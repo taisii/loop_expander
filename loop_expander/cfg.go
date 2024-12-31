@@ -71,7 +71,14 @@ func buildCFGEdges(cfg *ControlFlowGraph, asm *assembler.Assembler) {
 				labelAddr, ok := asm.Labels[labelName]
 				if ok {
 					// ジャンプ先のブロック番号を後続ブロックに追加
-					block.Succs = append(block.Succs, findBlockIndexByAddr(cfg, labelAddr))
+					blockIndex := findBlockIndexByAddr(cfg, labelAddr)
+					if blockIndex != -1 {
+						block.Succs = append(block.Succs, blockIndex)
+					} else {
+						// ラベルに対応するブロックが見つからない場合はエラー処理
+						// Succsを空にする
+						block.Succs = []int{}
+					}
 				} else {
 					// ラベルが見つからない場合はエラー処理
 					fmt.Printf("ラベル %s が見つかりません\n", labelName)

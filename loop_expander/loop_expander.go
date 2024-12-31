@@ -25,6 +25,22 @@ func Loop_expander(asm *assembler.Assembler, maxUnrollCount int) (*assembler.Ass
 		return asm, nil
 	}
 
+	// ループ展開前のプログラムの最後を取得
+	programEndAddress := len(asm.Program)
+
+	// ジャンプ命令用のラベルを作成
+	endLabel := "programEnd"
+	asm.Labels[endLabel] = programEndAddress
+
+	// ジャンプ命令を生成
+	jmpInstruction := assembler.Instruction{
+		Addr:   programEndAddress,
+		OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{endLabel}},
+	}
+
+	// ジャンプ命令をプログラムの最後に追加
+	asm.Program = append(asm.Program, jmpInstruction)
+
 	StartAddress := cfg.Blocks[loops[0][0]].StartAddress
 	loopEndAddress := cfg.Blocks[loops[0][len(loops[0])-1]].EndAddress
 	loopProgram := asm.Program[StartAddress:]
@@ -81,6 +97,8 @@ func Loop_expander(asm *assembler.Assembler, maxUnrollCount int) (*assembler.Ass
 
 		}
 	}
+
+	expandedAsm.Labels[endLabel] = len(expandedAsm.Program)
 
 	return expandedAsm, nil
 }

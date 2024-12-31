@@ -126,6 +126,30 @@ func TestDetectLoops(t *testing.T) {
 				{1, 2, 3},
 			},
 		},
+		// nestedなloop用
+		// {
+		// 	name: "loop_expander",
+		// 	assembly: &assembler.Assembler{
+		// 		Program: []assembler.Instruction{
+		// 			{Addr: 0, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+		// 			{Addr: 1, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
+		// 			{Addr: 2, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"InnerLoop"}}},
+		// 			{Addr: 3, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"y", "1"}}},
+		// 			{Addr: 4, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"y", "InnerLoop_0"}}},
+		// 			{Addr: 5, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+		// 			{Addr: 6, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"y", "1"}}},
+		// 			{Addr: 7, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"y", "InnerLoop_1"}}},
+		// 			{Addr: 8, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+		// 		},
+		// 		Labels: map[string]int{
+		// 			"OuterLoop":   1,
+		// 			"InnerLoop":   3,
+		// 			"InnerLoop_0": 6,
+		// 			"InnerLoop_1": 9,
+		// 		},
+		// 	},
+		// 	expected: [][]int{{1, 2, 3}, {1, 2, 4, 5}},
+		// },
 		// 他のテストケースを追加...
 	}
 

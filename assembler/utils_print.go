@@ -5,8 +5,6 @@ import (
     "strings"
 )
 
-// ... (構造体定義は省略)
-
 func DumpBasic(asm *Assembler) {
     if asm == nil {
         fmt.Println("Assembler is nil")
@@ -24,6 +22,28 @@ func DumpBasic(asm *Assembler) {
         fmt.Printf("%d:\t%s %s\n", inst.Addr, inst.OpCode.Mnemonic, operands)
     }
 }
+
+func DumpBasicString(asm *Assembler) string {
+	if asm == nil {
+		return "Assembler is nil"
+	}
+
+	var sb strings.Builder
+
+	sb.WriteString("Labels:\n")
+	for name, addr := range asm.Labels {
+		sb.WriteString(fmt.Sprintf("  %s: %d\n", name, addr))
+	}
+
+	sb.WriteString("\nProgram:\n")
+	for _, inst := range asm.Program {
+		operands := strings.Join(inst.OpCode.Operands, ", ")
+		sb.WriteString(fmt.Sprintf("%d:\t%s %s\n", inst.Addr, inst.OpCode.Mnemonic, operands))
+	}
+
+	return sb.String()
+}
+
 
 func DumpFormatted(asm *Assembler) {
     if asm == nil {

@@ -36,7 +36,7 @@ func TestBuildControlFlowGraph(t *testing.T) {
 							{Addr: 1, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"y", "1"}}},
 							{Addr: 2, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"x", "L1"}}},
 						},
-						Succs: []int{1,2},
+						Succs: []int{1, 2},
 					},
 					{
 						StartAddress: 3,
@@ -110,6 +110,83 @@ func TestBuildControlFlowGraph(t *testing.T) {
 							{Addr: 6, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"v", "4"}}},
 						},
 						Succs: []int{},
+					},
+				},
+			},
+		},
+		{
+			name: "loop_expander",
+			assembly: &assembler.Assembler{
+				Program: []assembler.Instruction{
+					{Addr: 0, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+					{Addr: 1, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
+					{Addr: 2, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"InnerLoop"}}},
+					{Addr: 3, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"y", "1"}}},
+					{Addr: 4, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"y", "InnerLoop_0"}}},
+					{Addr: 5, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+					{Addr: 6, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"y", "1"}}},
+					{Addr: 7, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"y", "InnerLoop_1"}}},
+					{Addr: 8, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+				},
+				Labels: map[string]int{
+					"OuterLoop":   1,
+					"InnerLoop":   3,
+					"InnerLoop_0": 6,
+					"InnerLoop_1": 9,
+				},
+			},
+			expected: &ControlFlowGraph{
+				Blocks: []*BasicBlock{
+					{
+						StartAddress: 0,
+						EndAddress:   0,
+						Instructions: []assembler.Instruction{
+							{Addr: 0, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+						},
+						Succs: []int{1},
+					},
+					{
+						StartAddress: 1,
+						EndAddress:   2,
+						Instructions: []assembler.Instruction{
+							{Addr: 1, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"x", "0"}}},
+							{Addr: 2, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"InnerLoop"}}},
+						},
+						Succs: []int{2},
+					},
+					{
+						StartAddress: 3,
+						EndAddress:   4,
+						Instructions: []assembler.Instruction{
+							{Addr: 3, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"y", "1"}}},
+							{Addr: 4, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"y", "InnerLoop_0"}}},
+						},
+						Succs: []int{3, 4},
+					},
+					{
+						StartAddress: 5,
+						EndAddress:   5,
+						Instructions: []assembler.Instruction{
+							{Addr: 5, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+						},
+						Succs: []int{1},
+					},
+					{
+						StartAddress: 6,
+						EndAddress:   7,
+						Instructions: []assembler.Instruction{
+							{Addr: 6, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"y", "1"}}},
+							{Addr: 7, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"y", "InnerLoop_1"}}},
+						},
+						Succs: []int{5},
+					},
+					{
+						StartAddress: 8,
+						EndAddress:   8,
+						Instructions: []assembler.Instruction{
+							{Addr: 8, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"OuterLoop"}}},
+						},
+						Succs: []int{1},
 					},
 				},
 			},
