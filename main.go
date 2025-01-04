@@ -1,33 +1,68 @@
 package main
 
 import (
+	"flag"
+	"fmt"
+	"os"
+
 	"github.com/taisii/go-project/assembler"
-	"github.com/taisii/go-project/executor"
+	"github.com/taisii/go-project/loop_expander"
 )
 
 func main() {
-	program := []assembler.OpCode{
-		{Mnemonic: "beqz", Operands: []string{"r1", "3"}},      // 条件: r1 == 0 (最初の分岐)
-		{Mnemonic: "add", Operands: []string{"r2", "r2", "1"}}, // 偽側: r2 = r2 + 1
-		{Mnemonic: "jmp", Operands: []string{"7"}},             // 偽側の終了
-		{Mnemonic: "beqz", Operands: []string{"r2", "6"}},      // 真側: 条件: r2 == 0
-		{Mnemonic: "add", Operands: []string{"r3", "r3", "1"}}, // 真側の偽側: r3 = r3 + 1
-		{Mnemonic: "jmp", Operands: []string{"7"}},             // 真側の偽側の終了
-		{Mnemonic: "add", Operands: []string{"r4", "r4", "1"}}, // 真側の真側: r4 = r4 + 1
-	}
-	initialConf := &executor.Configuration{
-		Registers: map[string]interface{}{
-			"r3": 0,
-			"r4": 0,
-		},
-		PC:     0,
-		Memory: map[int]interface{}{},
-		Trace:  executor.Trace{},
+	var inputFile string
+	var outputFile string
+	var unrollCount int
+
+	flag.StringVar(&inputFile, "i", "", "入力アセンブリファイル")
+	flag.StringVar(&outputFile, "o", "", "出力アセンブリファイル (指定しない場合は標準出力)")
+	flag.IntVar(&unrollCount, "n", 2, "ループ展開回数")
+	flag.Parse()
+
+	if inputFile == "" {
+		fmt.Println("入力ファイルを指定してください (-i オプション)")
+		os.Exit(1)
 	}
 
-	finalConfigs, _ := executor.SpecExecute(program, initialConf, 100, 10)
+	if unrollCount <= 0 {
+		fmt.Println("展開回数は正の整数である必要があります")
+		os.Exit(1)
+	}
 
-	for _, finalConfig := range finalConfigs {
-		executor.PrintConfiguration(*finalConfig)
+	file, err := os.Open(inputFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "入力ファイルのオープンに失敗しました: %v\n", err)
+		os.Exit(1)
+	}
+	defer file.Close()
+
+	asm, err := assembler.ParseAsm(file)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "アセンブリコードのパースに失敗しました: %v\n", err)
+		os.Exit(1)
+	}
+
+	expandedAsm, err := loop_expander.Loop_expander(asm, unrollCount)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ループ展開に失敗しました: %v\n", err)
+		os.Exit(1)
+	}
+
+	// GenerateAsm を使用してアセンブリコードを文字列に変換
+	output, err := assembler.GenerateAsm(expandedAsm)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "アセンブリコードの生成に失敗しました: %v\n", err)
+		os.Exit(1)
+	}
+
+	if outputFile != "" {
+		err = os.WriteFile(outputFile, []byte(output), 0644)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "出力ファイルへの書き込みに失敗しました: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("ループ展開されたアセンブリコードを %s に書き込みました\n", outputFile)
+	} else {
+		fmt.Println(output)
 	}
 }

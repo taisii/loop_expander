@@ -5,11 +5,6 @@ import (
 	"strings"
 )
 
-// 命令を表すインターフェース
-type Instruction interface {
-	String() string
-}
-
 // ラベルを表す構造体
 type Label struct {
 	Name string
@@ -23,15 +18,19 @@ type OpCode struct {
 }
 
 // p/2に対応：アドレスと命令のペアを保持
-type Program struct {
-	Addr int
-	Inst Instruction
+type Instruction struct {
+	Addr   int
+	OpCode OpCode
 }
 
 // μAsmアセンブラを表す構造体
 type Assembler struct {
-	Program []Program      // 命令とアドレスのペアのリスト
+	Program []Instruction  // 命令とアドレスのペアのリスト
 	Labels  map[string]int // ラベル名とアドレスのマップ
+}
+
+func (inst Instruction) String() string {
+	return fmt.Sprintf("Addr: %d, OpCode: %s", inst.Addr, inst.OpCode.String())
 }
 
 // Instructionインターフェースの実装：OpCode
