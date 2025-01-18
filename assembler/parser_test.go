@@ -69,6 +69,21 @@ func TestParseAsm(t *testing.T) {
 				},
 			},
 		},
+				{
+			filename: "../tests/test4.muasm",
+			expectedAssembly: assembler.Assembler{
+				Labels: map[string]int{
+					"End":  5,
+				},
+				Program: []assembler.Instruction{
+					{0, assembler.OpCode{"<-", []string{"x", "v<y"}}},
+					{1, assembler.OpCode{"beqz", []string{"x", "End"}}},
+					{2, assembler.OpCode{"spbarr", []string{""}}},
+					{3, assembler.OpCode{"load", []string{"v", "v"}}},
+					{4, assembler.OpCode{"load", []string{"v", "v"}}},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
