@@ -38,7 +38,6 @@ func ParseAsm(r io.Reader) (*Assembler, error) {
 
 			// spbarr
 			if strings.Contains(line, "spbarr") {
-				fmt.Println("spbarr", line)
 				mnemonic := "spbarr"
 				assembler.Program = append(assembler.Program, Instruction{Addr: addr, OpCode: OpCode{
 					Mnemonic: mnemonic,

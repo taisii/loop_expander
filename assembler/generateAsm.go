@@ -35,8 +35,11 @@ func GenerateAsm(assembler *Assembler) (string, error) {
 		} else {
 			sb.WriteString(instruction.OpCode.Mnemonic)
 			if len(instruction.OpCode.Operands) > 0 {
-				sb.WriteString(" ")
-				sb.WriteString(strings.Join(instruction.OpCode.Operands, ", "))
+				operands := strings.Join(instruction.OpCode.Operands, ", ")
+				if operands != "" {
+					sb.WriteString(" ")
+					sb.WriteString(operands)
+				}
 			}
 		}
 		sb.WriteString("\n")

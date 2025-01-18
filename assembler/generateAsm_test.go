@@ -124,6 +124,29 @@ programEnd:
 `,
 		},
 		{
+			name: "spbarr",
+			input: &assembler.Assembler{
+				Labels: map[string]int{
+					"End": 5,
+				},
+				Program: []assembler.Instruction{
+					{0, assembler.OpCode{"<-", []string{"x", "v<y"}}},
+					{1, assembler.OpCode{"beqz", []string{"x", "End"}}},
+					{2, assembler.OpCode{"spbarr", []string{""}}},
+					{3, assembler.OpCode{"load", []string{"v", "v"}}},
+					{4, assembler.OpCode{"load", []string{"v", "v"}}},
+				},
+			},
+			want: `x <- v<y
+beqz x, End
+spbarr
+load v, v
+load v, v
+End:
+`,
+			wantErr: false,
+		},
+		{
 			name: "空のAssembler",
 			input: &assembler.Assembler{
 				Program: []assembler.Instruction{},
