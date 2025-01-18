@@ -178,6 +178,35 @@ func TestLoop_expander(t *testing.T) {
 			},
 			expectedError: nil,
 		},
+		{
+			name: "no loop with spbarr",
+			inputAsm: &assembler.Assembler{
+				Labels: map[string]int{
+					"End": 5,
+				},
+				Program: []assembler.Instruction{
+					{Addr: 0, OpCode: assembler.OpCode{Mnemonic: "<-", Operands: []string{"x", "v<y"}}},
+					{Addr: 1, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"x", "End"}}},
+					{Addr: 2, OpCode: assembler.OpCode{Mnemonic: "spbarr", Operands: []string{""}}},
+					{Addr: 3, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"v", "v"}}},
+					{Addr: 4, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"v", "v"}}},
+				},
+			},
+			maxUnrollCount: 3,
+			expectedAsm: &assembler.Assembler{
+				Labels: map[string]int{
+					"End": 5,
+				},
+				Program: []assembler.Instruction{
+					{Addr: 0, OpCode: assembler.OpCode{Mnemonic: "<-", Operands: []string{"x", "v<y"}}},
+					{Addr: 1, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"x", "End"}}},
+					{Addr: 2, OpCode: assembler.OpCode{Mnemonic: "spbarr", Operands: []string{""}}},
+					{Addr: 3, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"v", "v"}}},
+					{Addr: 4, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"v", "v"}}},
+				},
+			},
+			expectedError: nil,
+		},
 		// ネストされたループのテストケース、今回の論文では対応しない
 		// {
 		// 	name: "nested loop (not supported)",
