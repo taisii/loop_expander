@@ -2,6 +2,7 @@ package loop_expander_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/taisii/go-project/assembler"
@@ -207,6 +208,58 @@ func TestLoop_expander(t *testing.T) {
 			},
 			expectedError: nil,
 		},
+		{
+			name: "Complex Loop with Multiple Internal Labels",
+			inputAsm: &assembler.Assembler{
+				Program: []assembler.Instruction{
+					{Addr: 0, OpCode: assembler.OpCode{Mnemonic: "<-", Operands: []string{"w", "0"}}},
+					{Addr: 1, OpCode: assembler.OpCode{Mnemonic: "<-", Operands: []string{"x", "in>=bound"}}},
+					{Addr: 2, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"x", "L3"}}},
+					{Addr: 3, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"L10"}}},
+					{Addr: 4, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"secret", "in"}}},
+					{Addr: 5, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"z", "secret"}}},
+					{Addr: 6, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"y", "Loop"}}},
+				},
+				Labels: map[string]int{
+					"Loop": 1,
+					"L3":   4,
+					"L10":  6,
+				},
+			},
+			maxUnrollCount: 2,
+			expectedAsm: &assembler.Assembler{
+				Program: []assembler.Instruction{
+					{Addr: 0, OpCode: assembler.OpCode{Mnemonic: "<-", Operands: []string{"w", "0"}}},
+					{Addr: 1, OpCode: assembler.OpCode{Mnemonic: "<-", Operands: []string{"x", "in>=bound"}}},
+					{Addr: 2, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"x", "L3"}}},
+					{Addr: 3, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"L10"}}},
+					{Addr: 4, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"secret", "in"}}},
+					{Addr: 5, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"z", "secret"}}},
+					{Addr: 6, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"y", "Loop_0"}}},
+					{Addr: 7, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"programEnd"}}},
+					{Addr: 8, OpCode: assembler.OpCode{Mnemonic: "<-", Operands: []string{"x", "in>=bound"}}},
+					{Addr: 9, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"x", "L3_0"}}},
+					{Addr: 10, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"L10_0"}}},
+					{Addr: 11, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"secret", "in"}}},
+					{Addr: 12, OpCode: assembler.OpCode{Mnemonic: "load", Operands: []string{"z", "secret"}}},
+					{Addr: 13, OpCode: assembler.OpCode{Mnemonic: "beqz", Operands: []string{"y", "Loop_1"}}},
+					{Addr: 14, OpCode: assembler.OpCode{Mnemonic: "jmp", Operands: []string{"programEnd"}}},
+				},
+				Labels: map[string]int{
+					"programEnd": 15,
+					"L3":       4,
+					"L3_0":       11,
+					"L10":      6,
+					"L10_0":      13,
+					"Loop":       1,
+					"Loop_0":     8,
+					"Loop_1":     15,
+					"L3_1":       18,
+					"L10_1":      20,
+				},
+			},
+			expectedError: nil,
+		},
 		// ネストされたループのテストケース、今回の論文では対応しない
 		// {
 		// 	name: "nested loop (not supported)",
@@ -308,14 +361,34 @@ func TestLoop_expander(t *testing.T) {
 			}
 
 			if !assembler.CompareAssembler(resultAsm, tc.expectedAsm) {
-				// assembler.DumpBasic(resultAsm)
-				// resultCFG, err := loop_expander.BuildControlFlowGraph(resultAsm)
-				// if err != nil {
-				// 	fmt.Println(err)
-				// }
-				// dot := loop_expander.ToDOT(resultCFG)
-				// fmt.Println(dot)
-				t.Errorf("%s differs from expected:\n%s\n%s", tc.name, assembler.DiffAssembler(resultAsm, tc.expectedAsm), assembler.DumpBasicString(resultAsm)) // DiffAssemblerで差分を出力
+				expectedCFG, errExpectedCFG := loop_expander.BuildControlFlowGraph(tc.expectedAsm)
+				var expectedDot string
+				if errExpectedCFG != nil {
+					expectedDot = fmt.Sprintf("Error building expected CFG: %v", errExpectedCFG)
+				} else if expectedCFG == nil {
+					expectedDot = "Expected CFG is nil (no loop or empty program)"
+				} else {
+					expectedDot = loop_expander.ToDOT(expectedCFG)
+				}
+
+				actualCFG, errActualCFG := loop_expander.BuildControlFlowGraph(resultAsm)
+				var actualDot string
+				if errActualCFG != nil {
+					actualDot = fmt.Sprintf("Error building actual CFG: %v", errActualCFG)
+				} else if actualCFG == nil {
+					actualDot = "Actual CFG is nil (no loop or empty program)"
+				} else {
+					actualDot = loop_expander.ToDOT(actualCFG)
+				}
+
+				t.Errorf("%s differs from expected.\n\nExpected Assembly:\n%s\nActual Assembly:\n%s\nAssembly Diff:\n%s\n\nExpected CFG (DOT):\n%s\nActual CFG (DOT):\n%s",
+					tc.name,
+					assembler.FormatAsm(tc.expectedAsm),
+					assembler.FormatAsm(resultAsm),
+					assembler.DiffAssembler(resultAsm, tc.expectedAsm),
+					expectedDot,
+					actualDot,
+				)
 			}
 		})
 	}
