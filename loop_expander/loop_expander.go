@@ -50,7 +50,7 @@ func Loop_expander(asm *assembler.Assembler, maxUnrollCount int) (*assembler.Ass
 	expandedAsm.Program = expandedAsm.Program[:StartAddress]
 
 	for i := 0; i < maxUnrollCount; i++ {
-		for _, inst := range loopProgram {
+		for instIndex, inst := range loopProgram {
 			var nextAddr int
 			if len(expandedAsm.Program) > 0 {
 				nextAddr = expandedAsm.Program[len(expandedAsm.Program)-1].Addr + 1
@@ -83,8 +83,19 @@ func Loop_expander(asm *assembler.Assembler, maxUnrollCount int) (*assembler.Ass
 			for j, operand := range inst.OpCode.Operands {
 				for originalLabel := range asm.Labels {
 					if operand == originalLabel {
-						if _, ok := newLabels[operand+"_"+strconv.Itoa(i)]; ok {
-							newInst.OpCode.Operands[j] = operand + "_" + strconv.Itoa(i)
+						// programEndラベルの場合は特別処理
+						if originalLabel == "programEnd" {
+							newInst.OpCode.Operands[j] = originalLabel
+						} else {
+							if instIndex+StartAddress >= expandedAsm.Labels[originalLabel] {
+								newInst.OpCode.Operands[j] = operand + "_" + strconv.Itoa(i)
+							} else {
+								if i > 0 {
+									newInst.OpCode.Operands[j] = operand + "_" + strconv.Itoa(i-1)
+								} else {
+									newInst.OpCode.Operands[j] = operand
+								}
+							}
 						}
 					}
 				}
